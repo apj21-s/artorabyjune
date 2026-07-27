@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="28 36 304 218" role="img" aria-label="June presenting a blank canvas">
+  <defs>
+    <style>
+      .ink{fill:none;stroke:#2d2a28;stroke-width:4.5;stroke-linecap:round;stroke-linejoin:round}
+      .face{fill:#fffaf4;stroke:#2d2a28;stroke-width:4.5;stroke-linecap:round;stroke-linejoin:round}
+      .shirt{fill:#f7f4ef;stroke:#2d2a28;stroke-width:4.5;stroke-linecap:round;stroke-linejoin:round}
+      .hair{fill:#594135;stroke:#2d2a28;stroke-width:4.5;stroke-linecap:round;stroke-linejoin:round}
+      .ground{fill:#2d2a28;opacity:.10}
+      .label{fill:#2d2a28;font-family:Arial,sans-serif;font-size:8px;font-weight:700;letter-spacing:1px}
+    </style>
+  </defs>
+
+  <!-- Soft grounding only; the rest of the illustration is transparent. -->
+  <ellipse class="ground" cx="178" cy="244" rx="136" ry="7"/>
+
+  <!-- Easel and blank presentation canvas. -->
+  <path class="ink" d="M145 67h83l6 121h-95z"/>
+  <path class="ink" d="M151 74h71l5 106h-81z"/>
+  <path class="ink" d="M186 188v37m0 0-28 17m28-17 29 17"/>
+  <path class="ink" d="M154 242h64"/>
+  <path class="ink" d="M222 72c12 15 13 35 8 54"/>
+  <path class="ink" d="M228 70c9 8 12 19 9 31"/>
+
+  <!-- Listener on the left. -->
+  <circle class="face" cx="79" cy="157" r="21"/>
+  <path class="ink" d="M68 146c6-8 16-10 25-4"/>
+  <path class="ink" d="M73 158h1m11 0h1"/>
+  <path class="ink" d="M75 169c4 4 9 4 13 0"/>
+  <path class="ink" d="M78 178v42m0 0-10 23m10-23 13 23"/>
+  <path class="ink" d="M77 187l-17 9m17-9 17 6"/>
+  <path class="ink" d="M61 196l-5-14m5 14 11-1"/>
+  <path class="shirt" d="M64 180c8-6 21-6 30 1l2 26c-12 7-26 7-38 0z"/>
+  <path class="ink" d="M77 188l10 14"/>
+
+  <!-- June, with long hair and an open presenting gesture. -->
+  <path class="hair" d="M268 132c-5-17 5-31 20-34 16-4 29 7 29 22 0 11-5 18-11 25l6 34c-8 7-19 8-29 2l-5-30c-7-5-10-11-10-19z"/>
+  <circle class="face" cx="290" cy="128" r="21"/>
+  <path class="ink" d="M278 122c5-9 17-12 27-5"/>
+  <path class="ink" d="M284 130h1m11 0h1"/>
+  <path class="ink" d="M286 140c4 4 9 4 13 0"/>
+  <path class="shirt" d="M274 151c9-6 22-6 31 0l5 42c-12 7-27 7-40 0z"/>
+  <text class="label" x="279" y="174">JUNE</text>
+  <path class="ink" d="M281 191l-4 31m4-31 14 31"/>
+  <path class="ink" d="M277 222l-7 21m25-21 8 21"/>
+  <path class="ink" d="M277 159l-19-12m19 12-15 14"/>
+  <path class="ink" d="M303 158l21-16m-21 16 18 13"/>
+  <path class="ink" d="M257 147l-9-4m9 4-6 8m74-13 9-5m-9 5 6 8"/>
+</svg>
