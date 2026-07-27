@@ -1016,31 +1016,38 @@ async function submitAuthForm(event) {
   const password = document.getElementById('authPassword')?.value || '';
   const name = document.getElementById('authName')?.value?.trim() || '';
 
-  if (DEMO_MODE) {
-    const role = email?.includes('admin') ? 'admin' : 'customer';
-    setUser({ email, name: name || email?.split('@')[0] || 'Story holder' }, 'demo-token', role);
-    saveDemoSession(appState.user);
+  try {
+    if (DEMO_MODE) {
+      const role = email?.includes('admin') ? 'admin' : 'customer';
+      setUser({ email, name: name || email?.split('@')[0] || 'Story holder' }, 'demo-token', role);
+      saveDemoSession(appState.user);
+      closeAuth();
+      await loadDashboardData();
+      appState.afterAuth?.();
+      appState.afterAuth = null;
+      return;
+    }
+
+    const endpoint = mode === 'signup' ? '/api/auth/register' : '/api/auth/login';
+    const body = { email, password, name };
+    const result = await api(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!result?.user) {
+      throw new Error('Authentication is unavailable right now.');
+    }
+    setUser(result.user, result.token, result.role || 'customer');
     closeAuth();
     await loadDashboardData();
-    appState.afterAuth?.();
-    appState.afterAuth = null;
-    return;
-  }
-
-  const endpoint = mode === 'signup' ? '/api/auth/register' : '/api/auth/login';
-  const body = { email, password, name };
-  const result = await api(endpoint, {
-    method: 'POST',
-    body: JSON.stringify(body),
-    headers: { 'Content-Type': 'application/json' },
-  });
-  setUser(result.user, result.token, result.role || 'customer');
-  closeAuth();
-  await loadDashboardData();
-  if (appState.afterAuth) {
-    const callback = appState.afterAuth;
-    appState.afterAuth = null;
-    callback();
+    if (appState.afterAuth) {
+      const callback = appState.afterAuth;
+      appState.afterAuth = null;
+      callback();
+    }
+  } catch (error) {
+    alert(error.message || 'Authentication is unavailable right now.');
   }
 }
 
