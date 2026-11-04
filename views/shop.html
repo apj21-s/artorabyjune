@@ -11,6 +11,27 @@
     <h1>Ready-made totes, painted one at a time.</h1>
     <p class="sub">Each one is hand-painted and sealed. When a design sells out, it rarely comes back the same way.</p>
   </section>
+  <div class="filter-bar" data-filter-bar>
+    <button class="filter-open" type="button" data-filter-open aria-controls="filterSheet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>Filter &amp; sort<span class="filter-badge" data-filter-badge hidden></span></button>
+    <span class="filter-count" data-result-count></span>
+  </div>
+  <div class="filter-pills" data-filter-pills></div>
+  <aside class="filter-sheet sheet" id="filterSheet" aria-label="Filter and sort" aria-hidden="true" inert>
+    <div class="sheet-head"><h2 class="sheet-title">Filter &amp; sort</h2><button class="icon-btn" type="button" data-sheet-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="filter-body">
+      <p class="filter-label">Occasion</p>
+      <div class="filter-options" data-sheet-tags role="radiogroup" aria-label="Occasion"></div>
+      <label class="filter-switch"><span>In stock only</span><input type="checkbox" role="switch" data-sheet-stock><i aria-hidden="true"></i></label>
+      <p class="filter-label">Sort by</p>
+      <div class="filter-sorts" data-sheet-sort role="radiogroup" aria-label="Sort">
+        <label><input type="radio" name="sheetSort" value="featured"> Featured</label>
+        <label><input type="radio" name="sheetSort" value="new"> Newest</label>
+        <label><input type="radio" name="sheetSort" value="price-asc"> Price: low to high</label>
+        <label><input type="radio" name="sheetSort" value="price-desc"> Price: high to low</label>
+      </div>
+    </div>
+    <div class="filter-foot"><button class="btn btn-ghost" type="button" data-sheet-clear>Clear</button><button class="btn btn-primary" type="button" data-sheet-apply>Show totes</button></div>
+  </aside>
   <div class="shop-toolbar" data-shop-toolbar>
     <div class="chip-row" role="group" aria-label="Filter by tag" data-tag-chips>
       <button class="chip is-active" type="button" data-tag="">All</button>

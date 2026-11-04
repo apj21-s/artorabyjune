@@ -679,3 +679,52 @@ body:not(.is-admin) .strip-track span{ opacity:1; }
   body:not(.is-admin) .stepper{ background:repeating-linear-gradient(90deg, rgba(34,29,25,.2) 0 6px, transparent 6px 10px) 0 100% / 100% 4px no-repeat; }
   body:not(.is-admin) .letter-sheet{ padding-bottom:96px !important; }
 }
+/* Phone filters: compact chips that clearly swipe (faded edge), with Sort back beside "In stock" */
+@media (max-width:699px){
+  body:not(.is-admin) [data-tag-chips], body:not(.is-admin) [data-story-filter]{
+    margin-inline:0; padding:2px 28px 6px 0; gap:6px;
+    -webkit-mask-image:linear-gradient(90deg, #000 calc(100% - 40px), transparent); mask-image:linear-gradient(90deg, #000 calc(100% - 40px), transparent);
+  }
+  body:not(.is-admin) :is([data-tag-chips], [data-story-filter]) .chip{ min-height:34px; padding:6px 12px; font-size:.82rem; }
+  body:not(.is-admin) .shop-toolbar{ top:0; padding:8px 16px; gap:6px; }
+  body:not(.is-admin) .shop-toolbar .toolbar-right{ display:flex !important; flex-wrap:nowrap; justify-content:space-between; align-items:center; }
+  body:not(.is-admin) .shop-toolbar .check{ font-size:.86rem; white-space:nowrap; }
+  body:not(.is-admin) .shop-toolbar .select-wrap{ display:block !important; flex:none; }
+  body:not(.is-admin) .shop-toolbar .select-wrap select{ min-height:34px; padding:6px 30px 6px 12px; font-size:.82rem; }
+}
+
+/* ================= Shop filters on phones: button + bottom sheet ================= */
+.filter-bar, .filter-pills{ display:none; }
+@media (max-width:699px){
+  body:not(.is-admin) .shop-toolbar{ display:none !important; }
+  body:not(.is-admin) .filter-bar{ position:sticky; top:0; z-index:20; display:flex; justify-content:space-between; align-items:center; gap:12px; margin-inline:-16px; padding:10px 16px; background:rgba(236,228,210,.95); backdrop-filter:blur(6px); box-shadow:0 8px 16px -14px rgba(34,29,25,.4); }
+  .filter-open{ display:inline-flex; align-items:center; gap:8px; min-height:42px; padding:0 16px; border:1px solid var(--ink); border-radius:999px; background:var(--ink); color:#fff; font:600 .9rem/1 'Space Grotesk', sans-serif; cursor:pointer; }
+  .filter-open svg{ width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; }
+  .filter-badge{ display:grid; place-items:center; min-width:20px; height:20px; padding:0 5px; border-radius:10px; background:var(--cherry); font-size:.72rem; }
+  .filter-count{ font:500 .76rem/1 'IBM Plex Mono', monospace; letter-spacing:.08em; text-transform:uppercase; color:var(--text-muted); }
+  body:not(.is-admin) .filter-pills:not(:empty){ display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 4px; }
+  .filter-pill{ display:inline-flex; align-items:center; gap:8px; min-height:34px; padding:0 8px 0 14px; border:1px solid rgba(193,68,60,.35); border-radius:999px; background:#FBF6EA; color:var(--ink); font:600 .82rem/1 'Space Grotesk', sans-serif; cursor:pointer; }
+  .filter-pill span{ display:grid; place-items:center; width:20px; height:20px; border-radius:50%; background:rgba(193,68,60,.12); color:var(--cherry-800); font-size:.95rem; }
+  /* the sheet */
+  body:not(.is-admin) .filter-sheet{ top:auto; left:0; right:0; width:100%; max-height:86vh; border-left:0; border-radius:20px 20px 0 0; transform:translateY(104%); padding-bottom:calc(16px + env(safe-area-inset-bottom)); background:var(--canvas-weave); }
+  body:not(.is-admin) .filter-sheet.is-open{ transform:none; }
+  body:not(.is-admin) .filter-sheet::before{ content:""; position:absolute; top:8px; left:50%; width:44px; height:5px; margin-left:-22px; border-radius:3px; background:rgba(34,29,25,.22); }
+  .filter-body{ overflow-y:auto; display:grid; gap:12px; padding-bottom:6px; }
+  .filter-label{ font:500 .7rem/1 'IBM Plex Mono', monospace; letter-spacing:.14em; text-transform:uppercase; color:var(--text-muted); margin-top:6px; }
+  .filter-options{ display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
+  .filter-opt{ min-height:46px; border:1px solid var(--line-strong); border-radius:12px; background:#FBF6EA; color:var(--ink); font:600 .92rem/1 'Space Grotesk', sans-serif; cursor:pointer; }
+  .filter-opt[aria-checked="true"]{ background:var(--ink); color:#fff; border-color:var(--ink); }
+  .filter-switch{ display:flex; justify-content:space-between; align-items:center; min-height:50px; padding:0 14px; border-radius:12px; background:#FBF6EA; font-weight:600; cursor:pointer; }
+  .filter-switch input{ position:absolute; opacity:0; }
+  .filter-switch i{ position:relative; width:44px; height:26px; border-radius:13px; background:rgba(34,29,25,.2); transition:background-color .2s; }
+  .filter-switch i::after{ content:""; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); transition:transform .25s cubic-bezier(.3,1.4,.5,1); }
+  .filter-switch input:checked + i{ background:var(--sage); }
+  .filter-switch input:checked + i::after{ transform:translateX(18px); }
+  .filter-switch input:focus-visible + i{ outline:2px solid var(--focus); outline-offset:2px; }
+  .filter-sorts{ display:grid; gap:2px; }
+  .filter-sorts label{ display:flex; align-items:center; gap:12px; min-height:46px; padding:0 4px; border-bottom:1px dashed rgba(34,29,25,.15); font-weight:500; cursor:pointer; }
+  .filter-sorts input{ accent-color:var(--cherry); width:18px; height:18px; }
+  .filter-foot{ display:grid; grid-template-columns:1fr 2fr; gap:10px; padding-top:12px; position:relative; }
+  .filter-foot::before{ content:""; position:absolute; left:0; right:0; top:0; height:1.4px; background:var(--seam); }
+  .filter-foot .btn{ min-height:48px; }
+}
