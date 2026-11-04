@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+{{> head}}
+<link rel="stylesheet" href="/css/admin.css">
+</head>
+<body data-page="admin" class="is-admin">
+<a class="skip-link" href="#main">Skip to content</a>
+<div class="admin-shell">
+  <aside class="admin-nav" aria-label="Admin">
+    <a href="/" class="logo"><span class="dot"></span>Artora <span class="accent">studio</span></a>
+    <nav>
+      <a href="#overview" data-nav="overview">Overview</a>
+      <a href="#orders" data-nav="orders">Orders <span class="badge" data-badge="orders" hidden></span></a>
+      <a href="#products" data-nav="products">Products</a>
+      <a href="#coupons" data-nav="coupons">Coupons</a>
+      <a href="#giftcards" data-nav="giftcards">Gift cards</a>
+      <a href="#reviews" data-nav="reviews">Reviews <span class="badge" data-badge="reviews" hidden></span></a>
+      <a href="#content" data-nav="content">Site content</a>
+      <a href="#messages" data-nav="messages">Messages <span class="badge" data-badge="messages" hidden></span></a>
+      <a href="#subscribers" data-nav="subscribers">Subscribers</a>
+      <a href="#admins" data-nav="admins">Admin access</a>
+    </nav>
+    <div class="admin-nav-foot"><a href="/">View site ↗</a><button class="link-btn" type="button" data-logout>Sign out</button></div>
+  </aside>
+  <main id="main" class="admin-main" data-admin-main aria-live="polite">
+    <div class="skeleton-block"></div>
+  </main>
+</div>
+<div class="modal-backdrop" data-modal hidden><div class="modal paper" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1"><div class="modal-head"><h2 id="modalTitle" data-modal-title></h2><button class="icon-btn" type="button" data-modal-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="modal-body" data-modal-body></div></div></div>
+<div class="toast-stack" data-toasts aria-live="polite"></div>
+<script type="module" src="/js/pages/admin.js"></script>
+</body>
+</html>

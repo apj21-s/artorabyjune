@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en" class="is-loading">
+<head>
+{{> head}}
+</head>
+<body data-page="shop" class="{{bodyClass}}">
+{{> header}}
+<main id="main">
+<div class="wrap">
+  <section class="page-hero">
+    <h1>Ready-made totes, painted one at a time.</h1>
+    <p class="sub">Each one is hand-painted and sealed. When a design sells out, it rarely comes back the same way.</p>
+  </section>
+  <div class="shop-toolbar" data-shop-toolbar>
+    <div class="chip-row" role="group" aria-label="Filter by tag" data-tag-chips>
+      <button class="chip is-active" type="button" data-tag="">All</button>
+    </div>
+    <div class="toolbar-right">
+      <label class="check"><input type="checkbox" data-instock> In stock only</label>
+      <label class="select-wrap"><span class="sr-only">Sort</span>
+        <select data-sort>
+          <option value="featured">Featured</option>
+          <option value="new">Newest</option>
+          <option value="price-asc">Price: low to high</option>
+          <option value="price-desc">Price: high to low</option>
+        </select>
+      </label>
+    </div>
+  </div>
+  <h2 class="sr-only">Totes in the studio</h2>
+  <div class="board">
+    <div class="grid product-grid" data-products aria-live="polite">
+      <div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div>
+    </div>
+  </div>
+  <section class="recent" data-recent-wrap hidden>
+    <div class="sec-head"><h2>Recently viewed</h2></div>
+    <div class="recent-row" data-recent></div>
+  </section>
+  <aside class="cross-sell reveal">
+    <div>
+      <h2>Have June paint your own story instead.</h2>
+      <p>Send a memory and a few photos. You approve a sketch before anything is painted.</p>
+    </div>
+    <a class="btn btn-primary" href="/commission">Commission a tote</a>
+  </aside>
+</div>
+</main>
+{{> footer}}
+<script type="module" src="/js/pages/shop.js"></script>
+</body>
+</html>

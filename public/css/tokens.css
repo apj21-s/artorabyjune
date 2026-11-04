@@ -1,0 +1,51 @@
+/* Design tokens. The original palette lives in studio.css; these extend it. */
+:root{
+  /* Paint tints (50 = wash, 600 = base, 800 = deep) */
+  --blue-50:#eef0f9; --blue-100:#dfe3f0; --blue-300:#8892c9; --blue-600:#3A4CA6; --blue-800:#26337a;
+  --cherry-50:#fbefed; --cherry-100:#f2c9c5; --cherry-300:#de8a83; --cherry-600:#C1443C; --cherry-800:#8f2d27;
+  --ochre-50:#faf3e3; --ochre-100:#f1e0b8; --ochre-300:#dfb664; --ochre-600:#C98A2A; --ochre-800:#8a5a17;
+  --sage-50:#f0f3ec; --sage-100:#c9d4bd; --sage-300:#9aa78a; --sage-600:#6C7C5C; --sage-800:#4f5d42;
+
+  /* Semantic */
+  --surface:#E8E1D0;
+  --surface-sunk:#DCD1B7;
+  --surface-raised:#FBF8F1;
+  --text:#221D19;
+  --text-muted:#56493d;
+  --text-faint:rgba(34,29,25,.55);
+  --line:rgba(34,29,25,.1);
+  --line-strong:rgba(34,29,25,.18);
+  --success:#6C7C5C;
+  --danger:#C1443C;
+  --warning:#C98A2A;
+  --info:#3A4CA6;
+  --focus:#3A4CA6;
+
+  /* Fluid type */
+  --fs-display:clamp(2.6rem, 5vw, 4.1rem);
+  --fs-h1:clamp(2.2rem, 4.2vw, 3.4rem);
+  --fs-h2:clamp(1.8rem, 3.2vw, 2.6rem);
+  --fs-h3:clamp(1.1rem, 1.6vw, 1.3rem);
+  --fs-body:1rem;
+  --fs-small:.86rem;
+  --fs-micro:.74rem;
+
+  /* Motion */
+  --dur-fast:.16s;
+  --dur-base:.26s;
+  --dur-slow:.5s;
+  --ease-spring:cubic-bezier(.34,1.56,.64,1);
+  --ease-out:cubic-bezier(.22,1,.36,1);
+
+  /* Layers */
+  --z-header:50;
+  --z-sheet:140;
+  --z-modal:160;
+  --z-toast:200;
+  --z-loading:220;
+
+  --header-h:68px;
+  --shadow-lift:0 18px 40px rgba(34,29,25,.14);
+  --shadow-paper:0 1px 0 rgba(255,255,255,.6) inset, 0 10px 30px rgba(34,29,25,.08);
+  --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .13 0 0 0 0 .11 0 0 0 0 .1 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}

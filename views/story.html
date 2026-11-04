@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en" class="is-loading">
+<head>
+{{> head}}
+</head>
+<body data-page="story" class="{{bodyClass}}">
+{{> header}}
+<main id="main">
+<div class="wrap">
+  <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a><span>/</span><a href="/stories">Stories</a><span>/</span><span data-crumb>Story</span></nav>
+  <article class="story-detail" data-story><div class="skeleton-block"></div></article>
+  <section data-more-wrap hidden><div class="sec-head"><h2>Keep wandering.</h2></div><div class="board"><div class="grid" data-more></div></div></section>
+</div>
+</main>
+{{> footer}}
+<script type="module" src="/js/pages/story.js"></script>
+</body>
+</html>

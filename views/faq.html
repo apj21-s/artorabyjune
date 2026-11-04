@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en" class="is-loading">
+<head>
+{{> head}}
+</head>
+<body data-page="faq" class="{{bodyClass}}">
+{{> header}}
+<main id="main">
+<div class="wrap narrow">
+  <section class="page-hero page-hero-tight"><h1>Questions, answered.</h1></section>
+  <div class="field faq-search"><label class="sr-only" for="faqSearch">Search questions</label><input id="faqSearch" type="search" placeholder="Search: deposit, shipping, washing…" data-faq-search></div>
+  <div data-faq-groups></div>
+  <aside class="cross-sell"><div><h2>Still wondering?</h2><p>June answers every message herself.</p></div><a class="btn btn-primary" href="/contact">Ask June</a></aside>
+</div>
+</main>
+{{> footer}}
+<script type="module" src="/js/pages/faq.js"></script>
+</body>
+</html>

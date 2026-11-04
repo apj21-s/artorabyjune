@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en" class="is-loading">
+<head>
+{{> head}}
+</head>
+<body data-page="contact" class="{{bodyClass}}">
+{{> header}}
+<main id="main">
+<div class="wrap">
+  <section class="page-hero page-hero-tight"><h1>Write to the studio.</h1><p class="sub" data-reply-time>June usually replies within a day.</p></section>
+  <div class="contact-layout">
+    <form class="pad contact-form crumpled" data-contact novalidate>
+      <div class="field-pair">
+        <div class="field"><label for="ctName">Name</label><input id="ctName" name="name" required autocomplete="name"></div>
+        <div class="field"><label for="ctEmail">Email</label><input id="ctEmail" name="email" type="email" required autocomplete="email"></div>
+      </div>
+      <div class="field-pair">
+        <div class="field"><label for="ctPhone">Phone (optional)</label><input id="ctPhone" name="phone" type="tel" autocomplete="tel"></div>
+        <div class="field"><label for="ctTopic">About</label><select id="ctTopic" name="topic"><option>General</option><option>A commission</option><option>An existing order</option><option>Bulk or corporate gifting</option><option>Collaboration</option></select></div>
+      </div>
+      <div class="field"><label for="ctMsg">Message</label><textarea id="ctMsg" name="message" rows="6" required minlength="5"></textarea></div>
+      <div class="hp" aria-hidden="true"><label>Website<input name="website" tabindex="-1" autocomplete="off"></label></div>
+      <button class="btn btn-primary" type="submit">Send message</button>
+    </form>
+    <aside class="contact-aside">
+      <div class="aside-card postcard"><span class="env-stamp" aria-hidden="true"></span><h2>Quicker ways</h2>
+        <p><a data-contact-ig href="https://instagram.com/{{instagram}}" target="_blank" rel="noopener">Instagram DM →</a></p>
+        <p data-contact-wa hidden><a href="#" target="_blank" rel="noopener">WhatsApp →</a></p>
+        <p><a data-contact-email href="mailto:hello@artorabyjune.com">hello@artorabyjune.com</a></p>
+      </div>
+      <div class="aside-card aside-quiet"><p>Tracking an order? <a href="/track">Use the tracker</a>.</p></div>
+    </aside>
+  </div>
+</div>
+</main>
+{{> footer}}
+<script type="module" src="/js/pages/contact.js"></script>
+</body>
+</html>

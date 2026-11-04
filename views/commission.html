@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" class="is-loading">
+<head>
+{{> head}}
+</head>
+<body data-page="commission" class="{{bodyClass}}">
+{{> header}}
+<main id="main">
+<div class="wrap">
+  <section class="page-hero page-hero-tight">
+    <h1>Dear June, I would like you to paint…</h1>
+    <p class="sub">Five gentle steps. Nothing is charged now. June replies with a sketch and a quote, usually within a day.</p>
+  </section>
+
+  <ol class="stepper" data-stepper aria-label="Commission steps">
+    <li class="is-current"><span>1</span>Canvas</li>
+    <li><span>2</span>Story</li>
+    <li><span>3</span>Photos</li>
+    <li><span>4</span>Details</li>
+    <li><span>5</span>Seal</li>
+  </ol>
+
+  <div class="commission-layout">
+    <form class="order-form letter-sheet" data-commission novalidate>
+      <div class="letter-topline">
+        <div><span class="letter-kicker">A note for</span><strong>June,</strong></div>
+        <span class="letter-stamp" aria-hidden="true"></span>
+      </div>
+      <span class="letter-photo" aria-hidden="true"><img src="/assets/art/pet.svg" alt="" width="200" height="250"></span>
+
+      <fieldset class="letter-step is-active" data-step="1">
+        <legend class="letter-salutation">First, choose your canvas.</legend>
+        <div class="tier-pick" data-tier-options></div>
+        <div class="field-pair">
+          <div class="field">
+            <span class="field-label">Style</span>
+            <div class="chip-row" data-choice="style">
+              <button class="chip is-active" type="button" data-value="Tote">Tote</button>
+              <button class="chip" type="button" data-value="Zip pouch">Zip pouch</button>
+              <button class="chip" type="button" data-value="Sling">Sling</button>
+            </div>
+          </div>
+          <div class="field">
+            <span class="field-label">Base colour</span>
+            <div class="chip-row" data-choice="baseColour">
+              <button class="chip is-active" type="button" data-value="Natural"><i class="sw" style="background:#F3EEE0"></i>Natural</button>
+              <button class="chip" type="button" data-value="Black"><i class="sw" style="background:#221D19"></i>Black</button>
+              <button class="chip" type="button" data-value="Sage"><i class="sw" style="background:#9aa78a"></i>Sage</button>
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="letter-step" data-step="2">
+        <legend class="letter-salutation">Dear June,</legend>
+        <div class="field">
+          <span class="field-label">The occasion</span>
+          <div class="chip-row" data-choice="occasion" data-allow-empty>
+            <button class="chip" type="button" data-value="Birthday">Birthday</button>
+            <button class="chip" type="button" data-value="Anniversary">Anniversary</button>
+            <button class="chip" type="button" data-value="Pet portrait">Pet portrait</button>
+            <button class="chip" type="button" data-value="Farewell">Farewell</button>
+            <button class="chip" type="button" data-value="Just for me">Just for me</button>
+          </div>
+        </div>
+        <div class="letter-prompt"><span>Your story</span><p>What would you like June to paint?</p></div>
+        <label class="letter-field letter-message"><span class="sr-only">Your story</span>
+          <textarea name="story" required minlength="10" maxlength="4000" placeholder="Write the memory, feeling, name, or place you want June to paint..."></textarea>
+        </label>
+        <label class="letter-field"><span class="field-label">Words, names or dates to include (optional)</span>
+          <input name="include" maxlength="500" placeholder="e.g. “Goa, 2019” or “for Mumu”">
+        </label>
+        <div class="field">
+          <span class="field-label">The mood</span>
+          <div class="chip-row" data-multi="moods">
+            <button class="chip" type="button" data-value="Soft">Soft</button>
+            <button class="chip" type="button" data-value="Bold">Bold</button>
+            <button class="chip" type="button" data-value="Playful">Playful</button>
+            <button class="chip" type="button" data-value="Minimal">Minimal</button>
+            <button class="chip" type="button" data-value="Dreamy">Dreamy</button>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="letter-step" data-step="3">
+        <legend class="letter-salutation">A few photos for June.</legend>
+        <div class="letter-attachments">
+          <div class="attachment-copy">
+            <span>Reference photos</span>
+            <p>Optional, but helpful. Faces, pets, places, colours, anything June should see.</p>
+            <strong class="attachment-count" data-ref-count>0 of 5 photos added</strong>
+          </div>
+          <label class="reference-upload dropzone" data-dropzone>
+            <input type="file" accept="image/jpeg,image/png,image/webp" multiple data-ref-input>
+            <span><strong>Add photos</strong><small>Tap or drop up to 5 images</small></span>
+          </label>
+          <div class="reference-preview" data-ref-preview aria-live="polite"></div>
+        </div>
+      </fieldset>
+
+      <fieldset class="letter-step" data-step="4">
+        <legend class="letter-salutation">Where can June reply?</legend>
+        <div class="letter-signoff">
+          <span>Signed by</span>
+          <label class="letter-field"><span class="sr-only">Your name</span><input name="name" required autocomplete="name" placeholder="your name"></label>
+        </div>
+        <div class="field-pair">
+          <label class="letter-field"><span class="field-label">Email</span><input name="email" type="email" required autocomplete="email" placeholder="you@example.com"></label>
+          <label class="letter-field"><span class="field-label">Phone / WhatsApp (optional)</span><input name="phone" type="tel" autocomplete="tel" placeholder="+91"></label>
+        </div>
+        <label class="letter-field"><span class="field-label">Needed by (optional)</span><input name="deadline" type="date" data-deadline></label>
+        <p class="helper-note" data-deadline-hint></p>
+        <label class="check"><input type="checkbox" name="isGift" data-gift-toggle> This is a gift</label>
+        <div class="gift-fields" data-gift-fields hidden>
+          <label class="letter-field"><span class="field-label">Gift note (we’ll handwrite it)</span><textarea name="giftNote" maxlength="400" rows="2"></textarea></label>
+          <label class="check"><input type="checkbox" name="giftWrap"> Add gift wrap <span data-giftwrap-fee></span></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="letter-step" data-step="5">
+        <legend class="letter-salutation">Read it back, then seal it.</legend>
+        <div class="letter-review" data-review></div>
+        <p class="helper-note">Nothing is charged now. June will email a sketch and a quote. You approve it, then pay a deposit to begin.</p>
+      </fieldset>
+
+      <div class="letter-footer letter-nav">
+        <button type="button" class="btn-back" data-prev hidden>Back</button>
+        <span class="letter-hint" data-save-hint>Your letter saves as you write.</span>
+        <button type="button" data-next>Continue</button>
+        <button type="submit" data-submit hidden>Seal and send to June</button>
+      </div>
+    </form>
+
+    <aside class="commission-aside">
+      <div class="aside-card">
+        <h2>What happens next</h2>
+        <ol class="mini-timeline">
+          <li><strong>June reads your note</strong><span>usually within a day</span></li>
+          <li><strong>Sketch + quote</strong><span>request changes for free</span></li>
+          <li><strong>Approve &amp; deposit</strong><span data-deposit-copy>50% to begin</span></li>
+          <li><strong>Painted &amp; sealed</strong><span>updates at every stage</span></li>
+          <li><strong>Balance, then shipped</strong><span>tracked, pan-India</span></li>
+        </ol>
+      </div>
+      <div class="aside-card aside-quiet">
+        <p>Prefer chatting? <a href="https://instagram.com/{{instagram}}" target="_blank" rel="noopener">DM June on Instagram</a>.</p>
+      </div>
+    </aside>
+  </div>
+
+  <div class="sealed" data-sealed hidden>
+    <div class="sealed-envelope" aria-hidden="true"><span class="env-body"></span><span class="env-flap"></span><span class="env-seal">J</span></div>
+    <h2>June has your story.</h2>
+    <p>Your order number is <strong data-sealed-number>—</strong>. We’ve emailed a copy to <strong data-sealed-email></strong>.</p>
+    <div class="hero-ctas"><a class="btn btn-primary" data-sealed-link href="/track">View your story</a><a class="btn btn-ghost" href="/shop">Browse the shop</a></div>
+  </div>
+</div>
+</main>
+{{> footer}}
+<script type="module" src="/js/pages/commission.js"></script>
+</body>
+</html>

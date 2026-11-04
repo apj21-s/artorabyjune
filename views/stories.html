@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en" class="is-loading">
+<head>
+{{> head}}
+</head>
+<body data-page="stories" class="{{bodyClass}}">
+{{> header}}
+<main id="main">
+<div class="wrap">
+  <section class="page-hero"><h1>A board of memories, painted.</h1><p class="sub">Each piece began as a note someone wrote to June. Tap one to read the memory behind it.</p></section>
+  <div class="chip-row" data-story-filter role="group" aria-label="Filter stories"></div>
+  <div class="board"><div class="grid stories-grid" data-portfolio role="list"></div></div>
+  <aside class="cross-sell reveal"><div><h2>What would yours look like?</h2></div><a class="btn btn-primary" href="/commission">Begin your story</a></aside>
+</div>
+</main>
+{{> footer}}
+<script type="module" src="/js/pages/stories.js"></script>
+</body>
+</html>

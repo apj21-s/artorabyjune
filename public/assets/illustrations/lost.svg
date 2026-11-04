@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 250" width="720" height="500" role="img" aria-label="A 404 painted on an easel, with painted footprints wandering off"><defs>
+  <filter id="lrough" x="-6%" y="-6%" width="112%" height="112%"><feTurbulence type="fractalNoise" baseFrequency=".045" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.6" xChannelSelector="R" yChannelSelector="G"/></filter>
+  <filter id="lgrain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="8" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 .13  0 0 0 0 .11  0 0 0 0 .1  0 0 0 .2 -.02"/></filter>
+  <filter id="lwash" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".011 .028" numOctaves="3" seed="12"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 .98  0 0 0 0 .94  0 0 0 .5 -.18"/></filter>
+  <filter id="lsoft" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="6"/></filter><filter id="lsh" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3"/></filter></defs><style>
+  .o{ animation-fill-mode:both; animation-timing-function:cubic-bezier(.5,0,.3,1); transform-box:fill-box; }
+  .draw{ stroke-dasharray:1; animation-name:draw; }
+  @keyframes draw{ from{ stroke-dashoffset:1; } to{ stroke-dashoffset:0; } }
+  .d1{ animation-delay:.25s; animation-duration:.8s; } .d2{ animation-delay:1.05s; animation-duration:.65s; } .d3{ animation-delay:2.05s; animation-duration:.8s; }
+  .ray{ stroke-dasharray:1; animation:draw .25s ease-out both; }
+  .spin{ transform-origin:50% 50%; animation:spin 30s linear 2s infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .drip{ stroke-dasharray:1; animation:draw .5s ease-in 2.9s both; }
+  .drop{ animation:drop 1.6s cubic-bezier(.55,0,1,.45) 3.35s infinite; }
+  @keyframes drop{ 0%{ transform:translateY(0) scale(.4); opacity:0; } 10%{ transform:translateY(0) scale(1); opacity:1; } 60%{ transform:translateY(86px) scaleY(1.15); opacity:1; } 64%, 100%{ transform:translateY(90px) scale(1.4, .2); opacity:0; } }
+  .step{ animation:step 4.2s ease-in-out infinite; }
+  @keyframes step{ 0%{ opacity:0; transform:translateY(2px); } 8%, 70%{ opacity:1; transform:none; } 92%, 100%{ opacity:0; } }
+  .spill{ transform-origin:0% 50%; animation:spill .7s cubic-bezier(.3,.7,.4,1) .4s both; }
+  @keyframes spill{ from{ transform:scaleX(.1); } }
+  @media (prefers-reduced-motion: reduce){ *{ animation:none !important; } .step{ opacity:1; } .drop{ opacity:0; } }</style>
+  <path d="M14 236 Q60 222 180 223 Q300 221 348 235 Q300 247 180 247 Q56 248 14 236 Z" fill="#f1e0b8" opacity=".55" filter="url(#lrough)"/>
+  <ellipse cx="180" cy="236" rx="160" ry="6" fill="#221D19" opacity=".1" filter="url(#lsh)"/>
+  <g stroke="#8a5a17" stroke-width="5" stroke-linecap="round"><path d="M180 18 L136 234"/><path d="M180 18 L226 234"/></g>
+  <path d="M180 18 L183 228" stroke="#6f4812" stroke-width="4" stroke-linecap="round"/>
+  <rect x="80" y="32" width="200" height="132" rx="4" fill="#2f2a26"/>
+  <rect x="87" y="39" width="186" height="118" rx="2" fill="#FBF8F1"/>
+  <rect x="87" y="39" width="186" height="118" filter="url(#lgrain)" opacity=".6"/>
+  <rect x="74" y="162" width="212" height="8" rx="2.5" fill="#8a5a17"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" filter="url(#lrough)">
+    <path class="o draw d1" pathLength="1" d="M120 62 L99 110 H148 M132 82 V132" stroke="#3A4CA6" stroke-width="13"/>
+    <path class="o draw d2" pathLength="1" d="M180 74 a22 22 0 1 1 0 44 a22 22 0 1 1 0 -44" stroke="#C98A2A" stroke-width="13"/>
+    <path class="o draw d3" pathLength="1" d="M242 62 L221 110 H270 M254 82 V132" stroke="#C1443C" stroke-width="13"/>
+  </g>
+  <g class="spin"><g stroke="#C98A2A" stroke-width="3" stroke-linecap="round"><line class="ray" style="animation-delay:1.65s" pathLength="1" x1="180" y1="63" x2="180" y2="55"/><line class="ray" style="animation-delay:1.69s" pathLength="1" x1="199.4" y1="69.3" x2="204.1" y2="62.8"/><line class="ray" style="animation-delay:1.73s" pathLength="1" x1="211.4" y1="85.8" x2="219" y2="83.3"/><line class="ray" style="animation-delay:1.77s" pathLength="1" x1="211.4" y1="106.2" x2="219" y2="108.7"/><line class="ray" style="animation-delay:1.81s" pathLength="1" x1="199.4" y1="122.7" x2="204.1" y2="129.2"/><line class="ray" style="animation-delay:1.85s" pathLength="1" x1="180" y1="129" x2="180" y2="137"/><line class="ray" style="animation-delay:1.89s" pathLength="1" x1="160.6" y1="122.7" x2="155.9" y2="129.2"/><line class="ray" style="animation-delay:1.93s" pathLength="1" x1="148.6" y1="106.2" x2="141" y2="108.7"/><line class="ray" style="animation-delay:1.97s" pathLength="1" x1="148.6" y1="85.8" x2="141" y2="83.3"/><line class="ray" style="animation-delay:2.01s" pathLength="1" x1="160.6" y1="69.3" x2="155.9" y2="62.8"/></g></g>
+  <path class="drip" pathLength="1" d="M254 138 V150" stroke="#C1443C" stroke-width="5" stroke-linecap="round"/>
+  <ellipse class="drop o" cx="254" cy="154" rx="3" ry="4" fill="#C1443C"/>
+  <g transform="translate(62 214) rotate(-72)"><rect x="-10" y="-13" width="20" height="24" rx="3" fill="#E9E2D3" stroke="#cfc4b2" stroke-width="1"/><rect x="-11" y="-16" width="22" height="5" rx="1.5" fill="#bfb6a6"/><rect x="-10" y="-4" width="20" height="9" fill="#C1443C" opacity=".9"/></g>
+  <path class="spill o" d="M76 226 Q86 218 100 222 Q112 224 108 231 Q96 236 80 233 Q70 231 76 226 Z" fill="#C1443C" filter="url(#lrough)"/>
+  <g class="step" style="animation-delay:1.20s" fill="#C1443C" opacity=".85"><ellipse cx="114" cy="227" rx="4.6" ry="2.3"/><ellipse cx="106.6" cy="227" rx="2.2" ry="1.9"/></g><g class="step" style="animation-delay:1.46s" fill="#C1443C" opacity=".85"><ellipse cx="138" cy="233" rx="4.6" ry="2.3"/><ellipse cx="130.6" cy="233" rx="2.2" ry="1.9"/></g><g class="step" style="animation-delay:1.72s" fill="#C1443C" opacity=".85"><ellipse cx="162" cy="227" rx="4.6" ry="2.3"/><ellipse cx="154.6" cy="227" rx="2.2" ry="1.9"/></g><g class="step" style="animation-delay:1.98s" fill="#C1443C" opacity=".85"><ellipse cx="186" cy="233" rx="4.6" ry="2.3"/><ellipse cx="178.6" cy="233" rx="2.2" ry="1.9"/></g><g class="step" style="animation-delay:2.24s" fill="#C1443C" opacity=".85"><ellipse cx="210" cy="227" rx="4.6" ry="2.3"/><ellipse cx="202.6" cy="227" rx="2.2" ry="1.9"/></g><g class="step" style="animation-delay:2.50s" fill="#C1443C" opacity=".85"><ellipse cx="234" cy="233" rx="4.6" ry="2.3"/><ellipse cx="226.6" cy="233" rx="2.2" ry="1.9"/></g><g class="step" style="animation-delay:2.76s" fill="#C1443C" opacity=".85"><ellipse cx="258" cy="227" rx="4.6" ry="2.3"/><ellipse cx="250.6" cy="227" rx="2.2" ry="1.9"/></g><g class="step" style="animation-delay:3.02s" fill="#C1443C" opacity=".85"><ellipse cx="282" cy="233" rx="4.6" ry="2.3"/><ellipse cx="274.6" cy="233" rx="2.2" ry="1.9"/></g><g class="step" style="animation-delay:3.28s" fill="#C1443C" opacity=".85"><ellipse cx="306" cy="227" rx="4.6" ry="2.3"/><ellipse cx="298.6" cy="227" rx="2.2" ry="1.9"/></g><g class="step" style="animation-delay:3.54s" fill="#C1443C" opacity=".85"><ellipse cx="330" cy="233" rx="4.6" ry="2.3"/><ellipse cx="322.6" cy="233" rx="2.2" ry="1.9"/></g>
+  <path d="M310 40 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2 Z" fill="#C98A2A"/><path d="M50 70 l1.5 3.6 3.6 1.5 -3.6 1.5 -1.5 3.6 -1.5 -3.6 -3.6 -1.5 3.6 -1.5 Z" fill="#de8a83"/>
+</svg>

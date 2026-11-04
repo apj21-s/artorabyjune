@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="240" height="240"><defs>
+  <filter id="srough" x="-6%" y="-6%" width="112%" height="112%"><feTurbulence type="fractalNoise" baseFrequency=".045" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.6" xChannelSelector="R" yChannelSelector="G"/></filter>
+  <filter id="sgrain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="8" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 .13  0 0 0 0 .11  0 0 0 0 .1  0 0 0 .2 -.02"/></filter>
+  <filter id="swash" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".011 .028" numOctaves="3" seed="12"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 .98  0 0 0 0 .94  0 0 0 .5 -.18"/></filter>
+  <filter id="ssoft" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="6"/></filter><filter id="ssh" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2"/></filter></defs><style>
+  .a{ animation-duration:5.4s; animation-iteration-count:1; animation-timing-function:cubic-bezier(.45,0,.25,1); animation-fill-mode:both; transform-box:fill-box; }
+  .tw{ animation-iteration-count:infinite; animation-duration:2.4s; }
+  @media (prefers-reduced-motion: reduce){ .a{ animation:none !important; } }
+  .photo{ animation-name:photo; }
+  @keyframes photo{ 0%, 14%{ transform:translateY(-50px); opacity:0; } 8%{ opacity:1; } 15%{ transform:translateY(-50px); opacity:1; } 34%, 100%{ transform:none; opacity:1; } }
+  .flapBack{ transform-origin:50% 100%; transform:scaleY(0); animation-name:flapBack; }
+  @keyframes flapBack{ 0%, 36%{ transform:scaleY(1); } 45%, 100%{ transform:scaleY(0); } }
+  .flapFront{ transform-origin:50% 0%; animation-name:flapFront; }
+  @keyframes flapFront{ 0%, 44%{ transform:scaleY(0); } 54%, 100%{ transform:scaleY(1); } }
+  .seal{ transform-origin:50% 50%; animation-name:pop; }
+  @keyframes pop{ 0%, 55%{ transform:scale(0); } 61%{ transform:scale(1.35); } 65%, 100%{ transform:scale(1); } }
+  .hop{ transform-box:view-box; animation-name:hop; }
+  @keyframes hop{ 0%, 62%{ transform:none; } 66%{ transform:translateY(-4px); } 70%{ transform:none; } 73%{ transform:translateY(-1.5px); } 76%, 100%{ transform:none; } }
+  .heart{ transform-origin:50% 50%; animation-name:heart; }
+  @keyframes heart{ 0%, 64%{ transform:translate(-34px, 36px) scale(.3); opacity:0; } 70%{ opacity:1; } 80%, 100%{ transform:none; opacity:1; } }
+  .tw{ transform-origin:50% 50%; animation-name:tw; }
+  @keyframes tw{ 0%, 100%{ transform:scale(1); } 50%{ transform:scale(.4); } }</style><g>
+  <ellipse cx="60" cy="106" rx="40" ry="5" fill="#221D19" opacity=".12" filter="url(#ssh)"/>
+  <g transform="rotate(-6 60 72)"><g class="a hop">
+    <path d="M22 56 H98 V102 H22 Z" fill="#E9DCC3"/>
+    <path class="a flapBack" d="M22 56 L60 30 L98 56 Z" fill="#E4D5B8"/>
+    <g class="a photo"><g transform="rotate(5 60 78)"><rect x="42" y="56" width="36" height="42" fill="#fff"/><rect x="45" y="59" width="30" height="27" fill="#f1e0b8"/><circle cx="68" cy="66" r="4.6" fill="#C98A2A"/><path d="M45 80 Q53 70 59 76 Q66 68 75 79 V86 H45 Z" fill="#3A4CA6"/></g></g>
+    <path d="M22 56 L60 84 L98 56 V102 H22 Z" fill="#F3EADA"/>
+    <path d="M22 102 L52 78 M98 102 L68 78" stroke="#D8C9AC" stroke-width="1"/>
+    <path class="a flapFront" d="M21 55.5 L60 86 L99 55.5 Z" fill="#EFE3CC" stroke="#D8C9AC" stroke-width="1" stroke-linejoin="round"/>
+    <g class="a seal"><circle cx="60" cy="80" r="7" fill="#C1443C" filter="url(#srough)"/><path d="M57 80 h6 M60 77 v6" stroke="#8f2d27" stroke-width="1.2"/></g>
+  </g></g>
+  <path class="a heart" d="M98 24 C95 21 90 21 90 25 C90 28 94 29 98 33 C102 29 106 28 106 25 C106 21 101 21 98 24 Z" fill="#de8a83"/>
+  <path class="a tw" d="M15 28 l1.2 2.8 2.8 1.2 -2.8 1.2 -1.2 2.8 -1.2 -2.8 -2.8 -1.2 2.8 -1.2 Z" fill="#C98A2A"/><path class="a tw" d="M108 51.4 l0.78 1.8199999999999998 1.8199999999999998 0.78 -1.8199999999999998 0.78 -0.78 1.8199999999999998 -0.78 -1.8199999999999998 -1.8199999999999998 -0.78 1.8199999999999998 -0.78 Z" fill="#dfb664"/></g></svg>

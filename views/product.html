@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en" class="is-loading">
+<head>
+{{> head}}
+</head>
+<body data-page="product" class="{{bodyClass}}">
+{{> header}}
+<main id="main">
+<div class="wrap">
+  <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a><span>/</span><a href="/shop">Shop</a><span>/</span><span data-crumb>Tote</span></nav>
+  <article class="product-layout" data-product>
+    <div class="product-gallery">
+      <div class="gallery-main skeleton-block"></div>
+    </div>
+    <div class="product-info"><div class="skeleton-line w60"></div><div class="skeleton-line w40"></div><div class="skeleton-line"></div><div class="skeleton-line"></div></div>
+  </article>
+  <section class="recent" data-recent-wrap hidden>
+    <div class="sec-head"><h2>Recently viewed</h2></div>
+    <div class="recent-row" data-recent></div>
+  </section>
+  <section class="related" data-related-wrap hidden>
+    <div class="sec-head"><h2>More from the studio</h2></div>
+    <div class="board"><div class="grid product-grid" data-related></div></div>
+  </section>
+</div>
+</main>
+{{> footer}}
+<script type="module" src="/js/pages/product.js"></script>
+</body>
+</html>

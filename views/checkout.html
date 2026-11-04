@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en" class="is-loading">
+<head>
+{{> head}}
+</head>
+<body data-page="checkout" class="{{bodyClass}}">
+{{> header}}
+<main id="main">
+<div class="wrap">
+  <section class="page-hero page-hero-tight"><h1>Almost yours.</h1></section>
+  <div class="checkout-layout">
+    <form class="checkout-form crumpled" data-checkout novalidate>
+      <fieldset><legend>Contact</legend>
+        <div class="field-pair">
+          <div class="field"><label for="coName">Full name</label><input id="coName" name="name" autocomplete="name" required></div>
+          <div class="field"><label for="coEmail">Email</label><input id="coEmail" name="email" type="email" autocomplete="email" required></div>
+        </div>
+        <div class="field"><label for="coPhone">Phone</label><input id="coPhone" name="phone" type="tel" autocomplete="tel" required placeholder="10-digit mobile"></div>
+      </fieldset>
+      <fieldset data-giftcard-fields hidden><legend>Gift card recipient</legend>
+        <div class="field-pair">
+          <div class="field"><label for="gcEmail">Their email</label><input id="gcEmail" name="giftCard.recipientEmail" type="email" placeholder="leave empty to send it to you"></div>
+          <div class="field"><label for="gcName">Their name</label><input id="gcName" name="giftCard.recipientName"></div>
+        </div>
+        <div class="field"><label for="gcMsg">Your note</label><textarea id="gcMsg" name="giftCard.message" maxlength="400" rows="2" class="handwritten" placeholder="Happy birthday! Pick something that feels like you."></textarea></div>
+      </fieldset>
+      <fieldset data-address-fields><legend>Delivery address</legend>
+        <div class="saved-addresses" data-saved-addresses hidden></div>
+        <div class="field"><label for="coRecipient">Recipient name</label><input id="coRecipient" name="address.name" autocomplete="shipping name" required></div>
+        <div class="field"><label for="coLine1">Address</label><input id="coLine1" name="address.line1" autocomplete="shipping address-line1" required placeholder="House, street, area"></div>
+        <div class="field"><label for="coLine2">Landmark (optional)</label><input id="coLine2" name="address.line2" autocomplete="shipping address-line2"></div>
+        <div class="field-trio">
+          <div class="field"><label for="coPin">Pincode</label><input id="coPin" name="address.pincode" inputmode="numeric" maxlength="6" autocomplete="shipping postal-code" required data-pincode></div>
+          <div class="field"><label for="coCity">City</label><input id="coCity" name="address.city" autocomplete="shipping address-level2" required></div>
+          <div class="field"><label for="coState">State</label><input id="coState" name="address.state" autocomplete="shipping address-level1" required></div>
+        </div>
+        <div class="field"><label for="coRecipientPhone">Recipient phone</label><input id="coRecipientPhone" name="address.phone" type="tel" required></div>
+      </fieldset>
+      <fieldset><legend>Gifting</legend>
+        <label class="check"><input type="checkbox" name="gift.isGift" data-gift-toggle> This is a gift (we’ll leave the price off)</label>
+        <div class="gift-fields" data-gift-fields hidden>
+          <div class="field"><label for="coGiftNote">Gift note</label><textarea id="coGiftNote" name="gift.note" maxlength="400" rows="3" placeholder="June will handwrite this on a card"></textarea></div>
+        </div>
+        <label class="check"><input type="checkbox" name="gift.wrap" data-giftwrap> Add gift wrap <span data-giftwrap-fee></span></label>
+      </fieldset>
+      <button class="btn btn-primary btn-block btn-lg" type="submit" data-pay>Pay securely</button>
+      <p class="helper-note center">Payments are processed securely by Razorpay. UPI, cards and netbanking accepted.</p>
+    </form>
+    <aside class="order-summary receipt" data-summary>
+      <h2 class="receipt-head">Your bag · Artora by June</h2>
+      <div data-summary-lines><div class="skeleton-line"></div><div class="skeleton-line"></div></div>
+      <form class="coupon-row" data-giftcode><label class="sr-only" for="giftcode">Gift card</label><input id="giftcode" name="giftcode" placeholder="Gift card code" autocomplete="off"><button class="btn btn-ghost" type="submit">Use</button></form>
+      <form class="coupon-row" data-coupon><label class="sr-only" for="coupon">Coupon</label><input id="coupon" name="coupon" placeholder="Coupon code" autocomplete="off"><button class="btn btn-ghost" type="submit">Apply</button></form>
+      <dl class="totals" data-totals></dl>
+    </aside>
+  </div>
+</div>
+</main>
+{{> footer}}
+<script type="module" src="/js/pages/checkout.js"></script>
+</body>
+</html>

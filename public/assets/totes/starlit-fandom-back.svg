@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="84 166 152 190" width="640" height="800" role="img" aria-label="starlit fandom tote"><defs>
+  <radialGradient id="tbg" cx=".5" cy=".38" r=".78"><stop offset="0" stop-color="#FBF8F1"/><stop offset=".7" stop-color="#EFE8DA"/><stop offset="1" stop-color="#E4DBC8"/></radialGradient>
+  <linearGradient id="tfab" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#E9E0CD"/><stop offset=".22" stop-color="#F5EFE3"/><stop offset=".62" stop-color="#F1EADC"/><stop offset="1" stop-color="#DED3BD"/></linearGradient>
+  <linearGradient id="tfabV" x1="0" y1="0" x2="0" y2="1"><stop offset=".72" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#5a4630" stop-opacity=".12"/></linearGradient>
+  <linearGradient id="them" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E7DECB"/><stop offset="1" stop-color="#EFE8DA"/></linearGradient>
+  <filter id="tweave" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="1.1 .55" numOctaves="2" seed="4" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 .35  0 0 0 0 .28  0 0 0 0 .2  0 0 0 .32 -.08"/></filter>
+  <filter id="tedge" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency=".06" numOctaves="3" seed="12" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="7" xChannelSelector="R" yChannelSelector="G"/></filter>
+  <filter id="tblur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="7"/></filter>
+  <filter id="tblurS" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.5"/></filter></defs>
+  <rect x="0" y="0" width="320" height="400" fill="url(#tbg)"/>
+  
+  <ellipse cx="160" cy="370" rx="104" ry="10" fill="#3b2f22" opacity=".18" filter="url(#tblurS)"/>
+  <path d="M86 140 L234 140 L250 360 H70 Z" fill="#3b2f22" opacity=".12" filter="url(#tblur)" transform="translate(6 8)"/>
+  <path class="tote-handle-back" d="M122 134 C118 70 202 70 198 134" stroke="#D3C7AE" stroke-width="12" fill="none"/>
+  <clipPath id="tbody"><path d="M74 132 L246 132 L255 350 Q256 362 244 362 L76 362 Q64 362 65 350 Z"/></clipPath>
+  <path d="M74 132 L246 132 L255 350 Q256 362 244 362 L76 362 Q64 362 65 350 Z" fill="url(#tfab)"/>
+  <g clip-path="url(#tbody)">
+    <rect x="60" y="128" width="200" height="240" filter="url(#tweave)"/>
+    <path d="M60 128 H260 V150 H60 Z" fill="url(#them)"/>
+    <path d="M60 150 H260" stroke="#D9CFBA" stroke-width="1"/>
+    <path d="M66 146 H254" stroke="#C9BCA2" stroke-width=".9" stroke-dasharray="3 2.4"/>
+    <path d="M73 152 L80 356" stroke="#C9BCA2" stroke-width=".9" stroke-dasharray="3 2.4"/><path d="M247 152 L240 356" stroke="#C9BCA2" stroke-width=".9" stroke-dasharray="3 2.4"/>
+    <ellipse cx="112" cy="250" rx="16" ry="110" fill="#fff" opacity=".22" filter="url(#tblur)"/>
+    <ellipse cx="214" cy="250" rx="12" ry="110" fill="#6b5a40" opacity=".08" filter="url(#tblur)"/>
+    <mask id="tpaint"><rect x="92" y="172" width="136" height="168" rx="4" fill="#fff" filter="url(#tedge)"/></mask>
+    <g mask="url(#tpaint)" opacity=".97">
+      <svg x="90" y="170" width="140" height="172" viewBox="0 0 200 250" preserveAspectRatio="xMidYMid slice"><defs>
+  <filter id="tarough" x="-6%" y="-6%" width="112%" height="112%"><feTurbulence type="fractalNoise" baseFrequency=".045" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.6" xChannelSelector="R" yChannelSelector="G"/></filter>
+  <filter id="tagrain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="8" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 .13  0 0 0 0 .11  0 0 0 0 .1  0 0 0 .2 -.02"/></filter>
+  <filter id="tawash" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".011 .028" numOctaves="3" seed="12"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 .98  0 0 0 0 .94  0 0 0 .5 -.18"/></filter>
+  <filter id="tasoft" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="6"/></filter><radialGradient id="tabg" cx=".5" cy=".45" r=".75"><stop offset="0" stop-color="#3A3566"/><stop offset=".6" stop-color="#1F1B33"/><stop offset="1" stop-color="#14111F"/></radialGradient>
+    <linearGradient id="tacard" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FBF8F1"/><stop offset="1" stop-color="#F1E6CF"/></linearGradient></defs><rect width="200" height="250" fill="url(#tabg)"/>
+    <ellipse cx="60" cy="80" rx="60" ry="30" fill="#3A4CA6" opacity=".35" filter="url(#tasoft)"/><ellipse cx="150" cy="178" rx="56" ry="26" fill="#8f2d27" opacity=".4" filter="url(#tasoft)"/>
+    <g fill="#FBF8F1"><circle cx="31.3" cy="156.3" r="0.6" opacity="0.8"/><circle cx="117" cy="112.3" r="1" opacity="0.5"/><circle cx="101.3" cy="15" r="0.8" opacity="0.4"/><circle cx="113.9" cy="55.1" r="0.4" opacity="1"/><circle cx="138.7" cy="22.7" r="0.4" opacity="0.3"/><circle cx="111.2" cy="111" r="1" opacity="0.8"/><circle cx="7.9" cy="113.5" r="0.6" opacity="0.7"/><circle cx="64.2" cy="129.6" r="0.4" opacity="0.9"/><circle cx="64.8" cy="183.3" r="1.1" opacity="0.7"/><circle cx="137" cy="188.6" r="0.9" opacity="0.5"/><circle cx="55.3" cy="26" r="0.6" opacity="1"/><circle cx="113.6" cy="100.9" r="0.3" opacity="0.6"/><circle cx="157.8" cy="249.5" r="0.5" opacity="0.9"/><circle cx="14.7" cy="136.7" r="0.8" opacity="0.4"/><circle cx="81.1" cy="28.8" r="0.4" opacity="1"/><circle cx="167.7" cy="47.7" r="0.3" opacity="1"/><circle cx="121.3" cy="198.6" r="0.7" opacity="0.6"/><circle cx="6.2" cy="104.3" r="0.6" opacity="0.8"/><circle cx="0.2" cy="188.1" r="0.6" opacity="0.5"/><circle cx="196.6" cy="221.8" r="1.1" opacity="0.7"/><circle cx="134" cy="238.7" r="0.6" opacity="0.4"/><circle cx="116.9" cy="99.2" r="0.6" opacity="0.9"/><circle cx="64.8" cy="137.2" r="0.6" opacity="0.8"/><circle cx="106.9" cy="100.8" r="1" opacity="0.7"/><circle cx="143.1" cy="206.5" r="0.6" opacity="0.5"/><circle cx="195.6" cy="14.8" r="0.4" opacity="0.8"/><circle cx="63.4" cy="234.1" r="0.3" opacity="0.7"/><circle cx="71.8" cy="170.8" r="0.4" opacity="0.4"/><circle cx="51.6" cy="188.6" r="1" opacity="0.4"/><circle cx="106.8" cy="110.1" r="0.9" opacity="0.5"/><circle cx="52.9" cy="133.8" r="0.5" opacity="0.4"/><circle cx="94.4" cy="52.8" r="0.8" opacity="0.4"/><circle cx="5.6" cy="184.5" r="0.4" opacity="0.6"/><circle cx="174.7" cy="153.3" r="0.7" opacity="0.7"/><circle cx="52.3" cy="29.9" r="0.9" opacity="0.7"/><circle cx="183.4" cy="43.2" r="0.6" opacity="0.9"/><circle cx="177" cy="140.7" r="0.9" opacity="0.4"/><circle cx="41.2" cy="158.6" r="0.8" opacity="0.8"/><circle cx="44.6" cy="77.4" r="1.2" opacity="0.5"/><circle cx="180.4" cy="38.9" r="0.5" opacity="0.3"/><circle cx="91.9" cy="59" r="0.6" opacity="0.9"/><circle cx="0.8" cy="3.2" r="0.8" opacity="0.7"/><circle cx="142.4" cy="222.3" r="0.3" opacity="0.5"/><circle cx="59.2" cy="72.2" r="0.9" opacity="0.9"/><circle cx="48.9" cy="84.7" r="1.1" opacity="0.8"/><circle cx="3.3" cy="98.1" r="0.6" opacity="0.7"/></g>
+    <path d="M36 40 Q37.08 44.92 42 46 Q37.08 47.08 36 52 Q34.92 47.08 30 46 Q34.92 44.92 36 40 Z" fill="#f1e0b8"/><path d="M166 93 Q166.9 97.1 171 98 Q166.9 98.9 166 103 Q165.1 98.9 161 98 Q165.1 97.1 166 93 Z" fill="#FBF8F1"/><path d="M28 164 Q28.72 167.28 32 168 Q28.72 168.72 28 172 Q27.28 168.72 24 168 Q27.28 167.28 28 164 Z" fill="#FBF8F1"/><path d="M176 194 Q177.08 198.92 182 200 Q177.08 201.08 176 206 Q174.92 201.08 170 200 Q174.92 198.92 176 194 Z" fill="#f1e0b8"/><path d="M142 26.5 Q142.63 29.37 145.5 30 Q142.63 30.63 142 33.5 Q141.37 30.63 138.5 30 Q141.37 29.37 142 26.5 Z" fill="#FBF8F1"/>
+    <circle cx="158" cy="56" r="11" fill="#C98A2A"/><path d="M158 45 a11 11 0 0 1 0 22" fill="#8a5a17" opacity=".45"/><ellipse cx="158" cy="56" rx="20" ry="5" fill="none" stroke="#f1e0b8" stroke-width="1.4" transform="rotate(-18 158 56)"/>
+    <rect x="66" y="74" width="68" height="96" rx="6" fill="#dfb664" opacity=".45" filter="url(#tasoft)" transform="rotate(-8 100 122)"/>
+    <g transform="rotate(-8 100 122)">
+      <rect x="68" y="76" width="64" height="92" rx="5" fill="url(#tacard)"/>
+      <rect x="73" y="81" width="54" height="82" rx="3" fill="none" stroke="#C98A2A" stroke-width=".9"/>
+      <path d="M100 98 L118 140 H82 Z" fill="#C1443C"/><circle cx="100" cy="126" r="7" fill="#C98A2A"/>
+      <g fill="#C98A2A"><circle cx="78" cy="86" r="1.2"/><circle cx="122" cy="86" r="1.2"/><circle cx="78" cy="158" r="1.2"/><circle cx="122" cy="158" r="1.2"/></g>
+      <path d="M86 152 H114" stroke="#221D19" stroke-width="1" opacity=".5"/>
+    </g>
+    <path d="M38 196 Q100 166 162 196" stroke="#8892c9" stroke-width="4" fill="none" stroke-linecap="round" filter="url(#tarough)"/>
+    <path d="M162 190 Q162.72 193.28 166 194 Q162.72 194.72 162 198 Q161.28 194.72 158 194 Q161.28 193.28 162 190 Z" fill="#dfe3f0"/><path d="M52 183 Q52.54 185.46 55 186 Q52.54 186.54 52 189 Q51.46 186.54 49 186 Q51.46 185.46 52 183 Z" fill="#dfe3f0"/>
+    <rect width="200" height="250" filter="url(#tawash)" opacity=".55"/><rect width="200" height="250" filter="url(#tagrain)"/></svg>
+      <rect x="88" y="168" width="144" height="176" filter="url(#tweave)" opacity=".7"/>
+    </g>
+    <rect x="60" y="128" width="200" height="240" fill="url(#tfabV)"/>
+  </g>
+  <path d="M74 132 L246 132 L255 350 Q256 362 244 362 L76 362 Q64 362 65 350 Z" fill="none" stroke="#D2C5AB" stroke-width="1.1"/>
+  <path class="tote-handle" d="M106 164 L106 140 C102 52 218 52 214 140 L214 164" stroke="#D8CDB5" stroke-width="15" fill="none"/>
+  <path d="M106 164 L106 140 C102 52 218 52 214 140 L214 164" stroke="#EFE8DA" stroke-width="12" fill="none"/>
+  <path d="M106 164 L106 140 C102 52 218 52 214 140 L214 164" stroke="#C9BCA2" stroke-width=".8" fill="none" stroke-dasharray="3 2.4"/>
+  <g fill="none" stroke="#C9BCA2" stroke-width=".9"><rect x="99.5" y="146" width="13" height="14"/><path d="M99.5 146 L112.5 160 M112.5 146 L99.5 160"/><rect x="207.5" y="146" width="13" height="14"/><path d="M207.5 146 L220.5 160 M220.5 146 L207.5 160"/></g>
+  </svg>

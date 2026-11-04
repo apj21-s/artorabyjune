@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="240" height="240"><defs>
+  <filter id="srough" x="-6%" y="-6%" width="112%" height="112%"><feTurbulence type="fractalNoise" baseFrequency=".045" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.6" xChannelSelector="R" yChannelSelector="G"/></filter>
+  <filter id="sgrain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="8" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 .13  0 0 0 0 .11  0 0 0 0 .1  0 0 0 .2 -.02"/></filter>
+  <filter id="swash" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".011 .028" numOctaves="3" seed="12"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 .98  0 0 0 0 .94  0 0 0 .5 -.18"/></filter>
+  <filter id="ssoft" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="6"/></filter><filter id="ssh" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2"/></filter></defs><style>
+  .a{ animation-duration:5.4s; animation-iteration-count:1; animation-timing-function:cubic-bezier(.45,0,.25,1); animation-fill-mode:both; transform-box:fill-box; }
+  .tw{ animation-iteration-count:infinite; animation-duration:2.4s; }
+  @media (prefers-reduced-motion: reduce){ .a{ animation:none !important; } }
+  .drop{ transform-box:view-box; animation-name:drop; }
+  @keyframes drop{ 0%, 8%{ transform:translateY(-48px); opacity:0; } 12%{ opacity:1; } 25%{ transform:none; } 28%{ transform:translateY(-3px); } 31%, 100%{ transform:none; opacity:1; } }
+  .flL{ transform-origin:0% 50%; animation-name:flL; }
+  @keyframes flL{ 0%, 34%{ transform:scaleX(0); } 43%, 100%{ transform:scaleX(1); } }
+  .flR{ transform-origin:100% 50%; animation-name:flR; }
+  @keyframes flR{ 0%, 39%{ transform:scaleX(0); } 48%, 100%{ transform:scaleX(1); } }
+  .tape{ stroke-dasharray:1; animation-name:tape; }
+  @keyframes tape{ 0%, 50%{ stroke-dashoffset:1; } 56%, 100%{ stroke-dashoffset:0; } }
+  .seal{ transform-origin:50% 50%; animation-name:pop; }
+  @keyframes pop{ 0%, 58%{ transform:scale(0); } 63%{ transform:scale(1.35); } 67%, 100%{ transform:scale(1); } }
+  .label{ animation-name:label; }
+  @keyframes label{ 0%, 68%{ transform:translateX(12px); opacity:0; } 74%, 100%{ transform:none; opacity:1; } }
+  .hop{ transform-box:view-box; animation-name:hop; }
+  @keyframes hop{ 0%, 77%{ transform:none; } 81%{ transform:translate(2px, -7px) rotate(1deg); } 85%{ transform:none; } 87%{ transform:translateY(-2px); } 89%, 100%{ transform:none; } }
+  .whoosh{ stroke-dasharray:1; animation-name:whoosh; }
+  @keyframes whoosh{ 0%, 79%{ stroke-dashoffset:1; opacity:1; } 85%{ stroke-dashoffset:0; opacity:1; } 92%, 100%{ stroke-dashoffset:0; opacity:0; } }
+  .tw{ transform-origin:50% 50%; animation-name:tw; }
+  @keyframes tw{ 0%, 100%{ transform:scale(1); } 50%{ transform:scale(.4); } }.a{ animation:none !important; }</style><g>
+  <ellipse cx="60" cy="108" rx="44" ry="5" fill="#221D19" opacity=".14" filter="url(#ssh)"/>
+  <g stroke="#4a413a" stroke-width="1.4" stroke-linecap="round" opacity=".6"><path class="a whoosh" pathLength="1" d="M14 70 H4"/><path class="a whoosh" pathLength="1" d="M16 80 H2"/><path class="a whoosh" pathLength="1" d="M14 90 H6"/></g>
+  <g class="a hop">
+    <path d="M22 50 L60 38 L98 50 L60 62 Z" fill="#8F6A3C"/>
+    <g class="a drop">
+      <path d="M52.5 51 C51.5 40 68.5 40 67.5 51" stroke="#D8CDB5" stroke-width="3" fill="none"/>
+      <path d="M47 50 H73 L75 77 H45 Z" fill="#F4EEE2"/><rect x="51" y="54" width="18" height="15" fill="#f1e0b8"/><circle cx="64" cy="58" r="3" fill="#C98A2A"/><path d="M51 66 Q56 60 60 63 Q64 59 69 65 V69 H51 Z" fill="#3A4CA6"/>
+    </g>
+    <path d="M22 50 L60 62 V104 L22 92 Z" fill="#C79A63"/>
+    <path d="M60 62 L98 50 V92 L60 104 Z" fill="#B3854F"/>
+    <g stroke="#7a5a33" stroke-width="1.3" fill="none"><path d="M41 56 V98"/><path d="M79 56 V98"/></g>
+    <path class="a flL" d="M22 50 L60 38 L60 62 Z" fill="#D6AE78"/>
+    <path class="a flR" d="M98 50 L60 38 L60 62 Z" fill="#CBA06A"/>
+    <path class="a tape" pathLength="1" d="M60 38 L60 62 V104" stroke="#E2C493" stroke-width="5" fill="none" opacity=".9"/>
+    <g class="a seal"><circle cx="60" cy="83" r="7" fill="#C1443C" filter="url(#srough)"/><circle cx="60" cy="83" r="4" fill="none" stroke="#8f2d27" stroke-width="1"/></g>
+    <g class="a label"><g transform="rotate(-10 90 92)"><rect x="78" y="84" width="22" height="13" rx="1" fill="#FBF8F1"/><path d="M81 89 h14 M81 93 h9" stroke="#4a413a" stroke-width=".9"/></g></g>
+  </g>
+  <path class="a tw" d="M102 18 l1.2 2.8 2.8 1.2 -2.8 1.2 -1.2 2.8 -1.2 -2.8 -2.8 -1.2 2.8 -1.2 Z" fill="#C98A2A"/><path class="a tw" d="M16 25.4 l0.78 1.8199999999999998 1.8199999999999998 0.78 -1.8199999999999998 0.78 -0.78 1.8199999999999998 -0.78 -1.8199999999999998 -1.8199999999999998 -0.78 1.8199999999999998 -0.78 Z" fill="#de8a83"/></g></svg>

@@ -1,0 +1,146 @@
+# Artora by June: owner's guide
+
+This guide covers putting the site online, connecting payments and emails, and running the studio day to day. No coding needed.
+
+---
+
+## 1. What you're getting
+
+| Part | What it does |
+|---|---|
+| **Website** | Home, Shop, Commission ("Dear June" letter), Stories, Gifts, About, FAQ, Contact, Track order, and legal pages |
+| **Customer accounts** | Customers see their orders, approve sketches, pay deposits and balances, and save addresses. Guests can order without an account. |
+| **Admin** (`yoursite.com/admin`) | Orders and commissions, products, coupons, reviews, all site text and prices, messages, newsletter subscribers |
+| **Emails** | Automatic emails for order received, quote ready, payment received, every stage update, shipped (with tracking) and review requests. You also get an alert for each new order. |
+| **Shop extras** | Search (the magnifier, or press `/`), saved totes (the heart), recently viewed, a full-size photo viewer, "better together" bundles, gift cards, and one gentle reminder email for bags left at checkout |
+
+**How a commission works:**
+1. A customer writes to June → you get an email.
+2. You open it in Admin → **Orders**, set a price, add a note and a sketch photo → **Send quote**.
+3. The customer approves and pays a **50% deposit**. If they want changes, they ask for them on the same page before paying.
+4. You move it through the stages (Painting → Sealing → Packing). The customer gets an email at each step.
+5. Before shipping, the customer pays the **balance**. You add the courier tracking number and mark it **Shipped**.
+6. When you mark it **Delivered**, the customer is asked for a review. Reviews appear on the site only after you approve them.
+
+**Shop orders** are paid in full at checkout.
+
+---
+
+## 2. Putting it online (about 1 hour, once)
+
+You need four free accounts. Keep each password somewhere safe.
+
+### a. Database: MongoDB Atlas (free)
+1. Sign up at **mongodb.com/atlas** → create a **free M0** cluster (choose Mumbai if offered).
+2. **Database Access** → add a user with a password.
+3. **Network Access** → add `0.0.0.0/0` (allow from anywhere; the password protects it).
+4. **Connect → Drivers** → copy the connection string. Replace `<password>` with your password, and add `artora` before the `?`, like `...mongodb.net/artora?retryWrites=...`. This is your `MONGODB_URI`.
+
+### b. Hosting: Render
+1. Put this code in a GitHub repository (private is fine).
+2. Sign up at **render.com** → **New → Blueprint** → choose the repository. Render reads `render.yaml` and asks for the settings below.
+3. Fill in at least these:
+   - `APP_URL`: your site address with `https://`. Use the Render address (e.g. `https://artora-by-june.onrender.com`) until you have a domain.
+   - `MONGODB_URI`: from step a.
+   - `INITIAL_ADMIN_EMAILS`: June's email. Signing up with this email makes the account an admin.
+   - `SUPPORT_EMAIL`: the email customers should reply to.
+   - Leave the rest blank for now. `JWT_SECRET` is generated for you.
+4. Click **Apply**. After a few minutes the site is live.
+5. Open `APP_URL/login` → **Create account** with June's email. You're now an admin. Go to `/admin`.
+
+> The **Starter** plan (about US$7/month) keeps the site awake. The free plan works but takes ~30 seconds to wake up after being idle, which isn't good for a shop.
+
+### c. Order emails: Resend (free up to 3,000 emails/month)
+1. Sign up at **resend.com** → **Domains** → add your domain and add the DNS records it shows (your domain provider has a DNS page).
+2. **API Keys** → create one → paste into Render as `RESEND_API_KEY`.
+3. Set `RESEND_FROM_EMAIL` to e.g. `Artora by June <orders@yourdomain.com>`.
+
+Until this is connected, the site works but **no emails are sent**.
+
+### d. Photo storage: Cloudinary (free tier)
+Needed for customer reference photos, your sketches, and product photos.
+1. Sign up at **cloudinary.com** → Dashboard shows **Cloud name**, **API key** and **API secret**.
+2. Paste them into Render as `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`.
+
+### e. Payments: Razorpay
+Until Razorpay is connected, customers see your **UPI ID** (set it in Admin → Site content) and you mark payments as received yourself in Admin → Orders → **Record UPI/cash payment**.
+
+To accept UPI, cards and netbanking online:
+1. Sign up at **razorpay.com** and complete KYC (needs PAN and bank account; takes a few days).
+2. **Settings → API Keys** → generate keys → paste into Render as `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`.
+3. **Settings → Webhooks** → add `APP_URL/api/payments/webhook` with events **payment.captured** and **order.paid**, set a secret, and paste the same secret into Render as `RAZORPAY_WEBHOOK_SECRET`.
+4. Test with Razorpay's **Test mode** keys first, then switch to **Live** keys.
+
+Razorpay takes about 2% per payment and pays out to your bank automatically.
+
+### f. Your own domain (optional, ~₹800–1,500/year)
+Buy a domain (GoDaddy, Namecheap, Hostinger…). In Render → your service → **Settings → Custom Domains**, add it and follow the DNS steps. Then change `APP_URL` to the new `https://` address.
+
+### g. Extras (optional)
+- **Google sign-in:** `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` from console.cloud.google.com, with redirect URI `APP_URL/api/auth/google/callback`.
+- **Visitor stats:** sign up at plausible.io and set `PLAUSIBLE_DOMAIN` to your domain.
+
+After changing any setting in Render, it restarts the site by itself.
+
+---
+
+## 3. Before you launch
+
+The **Before launch** card on the Admin overview tracks this list:
+
+- [ ] Payments, emails and photo storage connected (sections c–e above)
+- [ ] **Commission prices and turnaround** set (Admin → Site content → Tiers)
+- [ ] **Your UPI ID** added (Admin → Site content → Site), even with Razorpay, as a backup
+- [ ] **Sample products** replaced with real ones and real photos (Admin → Products)
+- [ ] **Sample reviews** replaced with real ones (Admin → Reviews)
+- [ ] **Privacy, Terms, Shipping & Returns** pages read and adjusted for your business. Add your business address and GST number if you have one.
+- [ ] Place one test order of each kind (shop and commission) and walk it through to "Delivered"
+
+---
+
+## 4. Everyday tasks
+
+| I want to… | Go to |
+|---|---|
+| Reply to a new commission | Admin → **Orders** → open it → **Send quote** (price, note, sketch photo) |
+| Move an order to the next stage | Open the order → pick the stage → **Update**. The customer is emailed automatically. Untick **Email the customer** to skip that. |
+| Add shipping tracking | Open the order → fill in the courier, tracking number and tracking link → mark **Shipped** |
+| Record a UPI/cash payment | Open the order → **Record UPI/cash payment** |
+| Add or edit a product | Admin → **Products** → **+ New**. The first photo is the cover. Stock 0 shows "Sold out". Raising stock emails everyone who asked to be notified. |
+| Run a sale | Admin → **Coupons** → percent or flat amount, minimum order, expiry, usage limit |
+| Pair two totes as a bundle | Admin → **Products** → open one → **Bundle with** (the other product's slug, e.g. `sunflower-pouch`) and **Bundle discount (₹)**. When both are in a bag, the discount comes off automatically. |
+| Sell gift cards | Two are ready in Products (₹500 and ₹1,000). Add more with **+ New** and **Type: Gift card**. When one is paid, a code is emailed to the recipient automatically. |
+| Give store credit (instead of a refund) | Admin → **Gift cards** → **+ New** → set the value. Leave the code empty and one is created. Send the customer the code. |
+| Show a photo with a review | Admin → **Reviews** → open it → **Photo in the testimonials**: upload one, or tap one of your own totes or paintings |
+| Turn cart reminders on or off | Admin → **Site content** → **Money & delivery** → "Email one reminder when someone leaves a bag at checkout". It sends at most one email, 6 hours later, with a one-click opt-out. |
+| Change prices, FAQs, homepage text, shipping fee, gift wrap fee, deposit % | Admin → **Site content** |
+| Approve a review | Admin → **Reviews** → tick **Approved** (and **Featured** to put it on the home page) |
+| Read contact form messages | Admin → **Messages** |
+| Download orders or subscribers | **Export CSV** button on Orders and Subscribers |
+| Give someone else admin access | Admin → **Admin access** → add their email. They sign up with that email. |
+
+**If something sells twice:** one-of-a-kind totes are reserved when payment arrives. If two people pay for the last one at the same moment, you get an email titled "Action needed", and the second order has an **OVERSOLD** note. Contact that customer to offer a repaint, a swap or a refund.
+
+---
+
+## 5. Monthly costs (approximate, check current prices)
+
+| Service | Cost |
+|---|---|
+| Render Starter | ~US$7/month |
+| MongoDB Atlas M0 | Free |
+| Cloudinary | Free tier covers a small shop |
+| Resend | Free up to 3,000 emails/month |
+| Razorpay | ~2% per payment, no monthly fee |
+| Domain | ~₹800–1,500/year |
+
+---
+
+## 6. If something goes wrong
+
+- **Site won't start:** Render → your service → **Logs**. The first lines say exactly which setting is missing (e.g. "JWT_SECRET must be…").
+- **No emails arriving:** check `RESEND_API_KEY` and that your domain shows **Verified** in Resend. Check the customer's spam folder.
+- **Photo upload says it isn't set up:** add the three Cloudinary settings.
+- **Payment taken but order still "unpaid":** the webhook will usually catch up within a minute. If not, check the payment in the Razorpay dashboard and use **Record UPI/cash payment** on the order.
+- **Forgot admin password:** use "Forgot your password?" on the login page (needs emails connected). A developer can also run `npm run create-admin -- email "new-password"`.
+- **Backups:** MongoDB Atlas free tier has no automatic backups. Once a month, export orders as CSV from the admin, or upgrade Atlas for automatic backups.

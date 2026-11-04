@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en" class="is-loading">
+<head>
+{{> head}}
+</head>
+<body data-page="reset" class="{{bodyClass}}">
+{{> header}}
+<main id="main">
+<div class="wrap narrow">
+  <section class="auth-shell single">
+    <form class="auth-card pad stack crumpled" data-reset novalidate>
+      <h1 class="auth-title">Choose a new password.</h1>
+      <div class="field"><label for="rsPass">New password</label><input id="rsPass" name="password" type="password" minlength="8" required autocomplete="new-password"></div>
+      <button class="btn btn-primary btn-block" type="submit">Save and sign in</button>
+    </form>
+  </section>
+</div>
+</main>
+{{> footer}}
+<script type="module" src="/js/pages/reset.js"></script>
+</body>
+</html>

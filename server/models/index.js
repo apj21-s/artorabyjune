@@ -1,0 +1,13 @@
+module.exports = {
+  User: require('./User'),
+  Product: require('./Product'),
+  Order: require('./Order'),
+  Coupon: require('./Coupon'),
+  Review: require('./Review'),
+  Content: require('./Content'),
+  Message: require('./Message'),
+  Subscriber: require('./Subscriber'),
+  GiftCard: require('./GiftCard'),
+  CartDraft: require('./CartDraft'),
+  ...require('./Counter'),
+};

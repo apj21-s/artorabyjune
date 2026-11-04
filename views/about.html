@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en" class="is-loading">
+<head>
+{{> head}}
+</head>
+<body data-page="about" class="{{bodyClass}}">
+{{> header}}
+<main id="main">
+<div class="wrap">
+  <section class="page-hero about-hero">
+    <div><h1 data-about="title">A small studio, one canvas at a time.</h1><p class="sub" data-about="intro"></p></div>
+    <img src="/assets/june-character.svg" alt="June presenting a canvas" width="304" height="218">
+  </section>
+  <section class="about-body"><div class="prose" data-about="paragraphs"></div></section>
+  <section aria-labelledby="promise-title"><div class="sec-head"><h2 id="promise-title">What every Artora tote comes with.</h2></div><div class="steps promise-grid" data-about="promises"></div></section>
+  <section id="care" aria-labelledby="care-title" class="care-card care-label">
+    <h2 id="care-title">Caring for your painted tote</h2>
+    <ul class="care-list"><li>Hand-wash in cold water, inside out.</li><li>Don’t scrub or wring the painted area.</li><li>Dry flat in the shade.</li><li>Iron on the reverse, low heat.</li></ul>
+  </section>
+  {{> dabs}}
+</div>
+</main>
+{{> footer}}
+<script type="module" src="/js/pages/about.js"></script>
+</body>
+</html>

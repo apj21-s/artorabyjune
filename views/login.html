@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en" class="is-loading">
+<head>
+{{> head}}
+</head>
+<body data-page="login" class="{{bodyClass}}">
+{{> header}}
+<main id="main">
+<div class="wrap narrow">
+  <section class="auth-shell">
+    <div class="auth-card pad crumpled">
+      <div class="tabs" role="tablist" aria-label="Sign in or create account">
+        <button class="tab is-active" type="button" role="tab" aria-selected="true" data-auth-tab="login">Sign in</button>
+        <button class="tab" type="button" role="tab" aria-selected="false" data-auth-tab="signup">Create account</button>
+        <button class="tab" type="button" role="tab" aria-selected="false" data-auth-tab="forgot" hidden>Reset</button>
+      </div>
+      <h1 class="auth-title" data-auth-title>Welcome back.</h1>
+      <form class="stack" data-auth-form novalidate>
+        <div class="field" data-only="signup" hidden><label for="auName">Your name</label><input id="auName" name="name" autocomplete="name"></div>
+        <div class="field"><label for="auEmail">Email</label><input id="auEmail" name="email" type="email" required autocomplete="email"></div>
+        <div class="field" data-hide="forgot"><label for="auPass">Password</label><input id="auPass" name="password" type="password" required minlength="8" autocomplete="current-password"><button class="link-btn" type="button" data-show-pass>Show</button></div>
+        <button class="btn btn-primary btn-block" type="submit" data-auth-submit>Sign in</button>
+        <button class="link-btn" type="button" data-auth-tab="forgot" data-hide="forgot">Forgot your password?</button>
+      </form>
+      <div class="or-divider" data-google-wrap hidden><span>or</span></div>
+      <a class="btn btn-ghost btn-block" data-google hidden href="/api/auth/google/start">Continue with Google</a>
+    </div>
+    <aside class="auth-aside">
+      <img class="auth-art" src="/assets/june-character.svg" alt="" width="304" height="218">
+      <h2>Your studio keeps:</h2>
+      <ul class="tick-list"><li>Every order and its live timeline</li><li>Sketch approvals and balance payments</li><li>Saved memories for future totes</li><li>Your addresses for faster checkout</li></ul>
+      <p class="helper-note">Ordered as a guest? Sign up with the same email and your orders appear automatically.</p>
+    </aside>
+  </section>
+</div>
+</main>
+{{> footer}}
+<script type="module" src="/js/pages/login.js"></script>
+</body>
+</html>

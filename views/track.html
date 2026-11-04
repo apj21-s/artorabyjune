@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en" class="is-loading">
+<head>
+{{> head}}
+</head>
+<body data-page="track" class="{{bodyClass}}">
+{{> header}}
+<main id="main">
+<div class="wrap narrow">
+  <section class="page-hero page-hero-tight"><h1>Where is your story?</h1><p class="sub">Enter the order number from your email (it looks like AJ-0012).</p></section>
+  <form class="pad track-form crumpled" data-track novalidate>
+    <div class="field-pair">
+      <div class="field"><label for="trNumber">Order number</label><input id="trNumber" name="number" required placeholder="AJ-0001" autocapitalize="characters"></div>
+      <div class="field"><label for="trEmail">Email used</label><input id="trEmail" name="email" type="email" required autocomplete="email"></div>
+    </div>
+    <button class="btn btn-primary" type="submit">Find my order</button>
+  </form>
+  <div data-track-result></div>
+</div>
+</main>
+{{> footer}}
+<script type="module" src="/js/pages/track.js"></script>
+</body>
+</html>
