@@ -231,7 +231,28 @@ function wireSaved() {
 }
 
 // Phone/tablet niceties: active tab in the bottom bar, bag count on it, footer groups as accordions on phones.
+// Touch screens have no hover: press and hold a product photo to see its second view; release to go back.
+function wirePhotoPeek() {
+  let timer = null;
+  let peeked = null;
+  document.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse') return;
+    const card = e.target.closest('.product-card');
+    if (!card || !card.querySelector('.product-media img + img') || !e.target.closest('.product-media')) return;
+    timer = setTimeout(() => { card.classList.add('is-peek'); peeked = card; }, 220);
+  }, { passive: true });
+  const end = () => { clearTimeout(timer); if (peeked) { const c = peeked; setTimeout(() => c.classList.remove('is-peek'), 60); } };
+  ['pointerup', 'pointercancel', 'scroll'].forEach((t) => document.addEventListener(t, end, { passive: true, capture: t === 'scroll' }));
+  // A hold to peek shouldn't also open the product.
+  document.addEventListener('click', (e) => {
+    if (peeked && e.target.closest('.product-card') === peeked) { e.preventDefault(); e.stopPropagation(); }
+    peeked = null;
+  }, true);
+  document.addEventListener('contextmenu', (e) => { if (e.target.closest('.product-media')) e.preventDefault(); });
+}
+
 function wirePhoneUi() {
+  wirePhotoPeek();
   const path = location.pathname.replace(/\/$/, '') || '/';
   $$('[data-tab-link]').forEach((a) => {
     const href = a.dataset.tabLink;

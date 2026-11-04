@@ -760,7 +760,7 @@ body:not(.is-admin) .product-card .product-meta{ margin-top:auto; }
   body:not(.is-admin) .product-card .pin{ display:none; }
   body:not(.is-admin) .product-card .product-media{ margin:0; border-radius:0; aspect-ratio:4/5; background:#F1EADB; }
   body:not(.is-admin) .product-card .product-media img{ border-radius:0; }
-  body:not(.is-admin) .product-card .product-media img + img{ display:none; }
+  body:not(.is-admin) .product-card .product-media img + img{ border-radius:0; }
   body:not(.is-admin) .product-card .product-media .tape{ top:auto; bottom:10px; left:10px; transform:rotate(-2deg); font-size:.58rem; padding:4px 8px; }
   body:not(.is-admin) .product-card .save-btn{ top:8px; right:8px; width:34px; height:34px; background:rgba(251,248,241,.92); border-color:transparent; box-shadow:0 2px 8px rgba(34,29,25,.12); }
   body:not(.is-admin) .product-card h3{ margin:12px 12px 2px; min-height:2.5em; font-size:.95rem; font-weight:600; }
@@ -779,3 +779,11 @@ body:not(.is-admin) .product-card .product-meta{ margin-top:auto; }
   body:not(.is-admin) :not(#shop-preview) > .product-grid > .product-card:last-child:nth-child(odd) h3{ margin:14px 14px 4px; }
 }
 @media (max-width:699px){ body:not(.is-admin) .product-card .product-meta{ flex-direction:row !important; align-items:center !important; justify-content:space-between !important; text-align:left; } body:not(.is-admin) .product-card .price-stamp{ margin:0; text-align:left; } body:not(.is-admin) .product-card h3{ text-align:left; } }
+/* Second photo: hover on mouse devices (any width); press-and-hold on touch screens */
+body:not(.is-admin) .product-card.is-peek .product-media img + img{ opacity:1; }
+body:not(.is-admin) .product-card.is-peek .product-media img:first-child{ transform:scale(1.03); }
+body:not(.is-admin) .product-media:has(img + img)::after{
+  content:""; position:absolute; z-index:2; left:50%; bottom:8px; width:18px; height:6px; margin-left:-9px;
+  background:radial-gradient(circle, rgba(251,248,241,.95) 2.4px, transparent 2.8px) 0 0 / 9px 6px repeat-x; filter:drop-shadow(0 0 1px rgba(34,29,25,.5)); pointer-events:none;
+}
+@media (hover:none){ body:not(.is-admin) .product-card .product-media img{ -webkit-touch-callout:none; user-select:none; } }
