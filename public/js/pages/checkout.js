@@ -72,6 +72,23 @@ function render() {
     ${rows.map(([k, v, cls]) => raw(html`<dt class="${cls || ''}">${k}</dt><dd class="${cls || ''}">${v}</dd>`))}
     <dt class="grand">Total</dt><dd class="grand">${inr(quote.total)}</dd>
     ${quote.toFreeShipping > 0 ? raw(html`<dt style="grid-column:1/-1" class="helper-note">Add ${inr(quote.toFreeShipping)} more for free shipping.</dt>`) : ''}`;
+  // Phones: the summary collapses to one tappable line.
+  let toggle = $('[data-summary-toggle]');
+  if (!toggle) {
+    toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'summary-toggle';
+    toggle.dataset.summaryToggle = '';
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.addEventListener('click', () => {
+      const open = toggle.getAttribute('aria-expanded') !== 'true';
+      toggle.setAttribute('aria-expanded', String(open));
+      $('[data-summary]').classList.toggle('is-open', open);
+    });
+    $('[data-summary]').prepend(toggle);
+  }
+  const itemCount = quote.lines.reduce((n, l) => n + l.qty, 0);
+  toggle.innerHTML = html`<span>Order summary · ${itemCount} ${itemCount === 1 ? 'item' : 'items'}</span><strong>${inr(quote.total)}</strong>`;
   $('[data-pay]').textContent = quote.total ? `Pay ${inr(quote.total)} securely` : 'Place order — covered by gift card';
   // Gift cards are emailed; only show the address when something will be posted.
   const addr = $('[data-address-fields]');

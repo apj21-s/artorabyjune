@@ -76,6 +76,15 @@ function render(p, site) {
 
   wireGallery(p);
   renderBundle(p);
+  // Phones: keep "Add to bag" within thumb reach once the main button scrolls away.
+  const mainBtn = $('.buy-row [data-add-to-cart]');
+  if (mainBtn && 'IntersectionObserver' in window) {
+    const bar = document.createElement('div');
+    bar.className = 'buy-bar';
+    bar.innerHTML = html`<div><strong>${p.title}</strong><span>${inr(p.price)}</span></div><button class="btn btn-primary" type="button" data-add-to-cart="${p.id}">Add to bag</button>`;
+    document.body.appendChild(bar);
+    new IntersectionObserver(([e]) => bar.classList.toggle('is-shown', !e.isIntersecting && e.boundingClientRect.top < 0)).observe(mainBtn);
+  }
   $('[data-buy-now]')?.addEventListener('click', (e) => {
     e.preventDefault();
     $('[data-add-to-cart]').click();

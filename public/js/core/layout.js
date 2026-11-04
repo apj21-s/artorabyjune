@@ -229,6 +229,23 @@ function wireSaved() {
   session().then((user) => { if (user) syncSaved(); });
 }
 
+// Phone/tablet niceties: active tab in the bottom bar, bag count on it, footer groups as accordions on phones.
+function wirePhoneUi() {
+  const path = location.pathname.replace(/\/$/, '') || '/';
+  $$('[data-tab-link]').forEach((a) => {
+    const href = a.dataset.tabLink;
+    if (href === path || (href !== '/' && path.startsWith(href))) a.setAttribute('aria-current', 'page');
+  });
+  const count = () => { const n = cartCount(); $$('[data-tab-count]').forEach((el) => { el.hidden = !n; el.textContent = String(n); }); };
+  count();
+  onCartChange(count);
+  const phone = window.matchMedia('(max-width: 699px)');
+  const setFooter = () => $$('.foot-col').forEach((d) => { d.open = !phone.matches; });
+  setFooter();
+  phone.addEventListener('change', setFooter);
+  $$('.foot-col > summary').forEach((el) => el.addEventListener('click', (e) => { if (!phone.matches) e.preventDefault(); }));
+}
+
 async function wireAccount() {
   const user = await session();
   const label = user ? (user.name || 'Account').split(' ')[0] : 'Sign in';
@@ -281,4 +298,5 @@ export function initLayout() {
   wireBrushWords();
   wireSearch();
   wireSaved();
+  wirePhoneUi();
 }
