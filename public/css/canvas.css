@@ -652,3 +652,30 @@ body:not(.is-admin) .strip-track span{ opacity:1; }
 }
 @media (min-width:700px){ .gallery-swipe, .gallery-dots{ display:none; } }
 @media (max-width:699px){ body:not(.is-admin) .sheet{ z-index:310; } body:not(.is-admin) .sheet-backdrop{ z-index:300; } body:not(.is-admin) .toast-stack{ z-index:320; } }
+
+/* Pricing switcher, commission step label, room under the pinned buttons */
+.tier-switch, .tier-meta{ display:none; }
+@media (max-width:1023px){
+  body:not(.is-admin) .tier-switch{ display:flex; gap:6px; padding:4px; margin:0 0 6px; border-radius:16px; background:rgba(34,29,25,.06); }
+  body:not(.is-admin) .tier-switch button{ flex:1; display:grid; gap:2px; padding:9px 6px; border:0; border-radius:12px; background:none; cursor:pointer; font:600 .86rem/1.1 'Space Grotesk', sans-serif; color:var(--ink-soft); transition:background-color .25s, color .25s, box-shadow .25s; }
+  body:not(.is-admin) .tier-switch button small{ font:500 .72rem/1 'IBM Plex Mono', monospace; color:var(--text-muted); }
+  body:not(.is-admin) .tier-switch button[aria-selected="true"]{ background:#FBF6EA; color:var(--ink); box-shadow:0 4px 10px -6px rgba(34,29,25,.35); }
+  body:not(.is-admin) .tier-meta{ display:flex; justify-content:space-between; align-items:center; margin-top:2px; }
+  .tier-dots{ display:flex; gap:6px; }
+  .tier-dots i{ width:7px; height:7px; border-radius:50%; background:rgba(34,29,25,.25); transition:width .25s, background-color .25s; }
+  .tier-dots i.on{ width:20px; border-radius:4px; background:var(--cherry); }
+  .tier-hint{ font:700 1.1rem/1 'Caveat', cursive; color:var(--ink-soft); transition:opacity .4s; }
+  .tier-meta.is-swiped .tier-hint{ opacity:0; }
+}
+@media (max-width:699px){
+  body:not(.is-admin) .stepper li, body:not(.is-admin) .stepper li.is-current{ display:none !important; }
+  body:not(.is-admin) .stepper{ padding:0 0 14px; min-height:0; }
+  body:not(.is-admin) .stepper[data-label]::before{
+    content:attr(data-label); position:static; display:block; height:auto; background:none; margin-bottom:10px;
+    font:600 1rem/1.2 'Space Grotesk', sans-serif; color:var(--ink);
+  }
+  body:not(.is-admin) .stepper::after{ bottom:0; }
+  body:not(.is-admin) .stepper{ border-bottom:0; }
+  body:not(.is-admin) .stepper{ background:repeating-linear-gradient(90deg, rgba(34,29,25,.2) 0 6px, transparent 6px 10px) 0 100% / 100% 4px no-repeat; }
+  body:not(.is-admin) .letter-sheet{ padding-bottom:96px !important; }
+}

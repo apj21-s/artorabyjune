@@ -237,6 +237,7 @@ function go(n) {
     else li.removeAttribute('aria-current');
   });
   $('[data-stepper]').style.setProperty('--progress', String(current / 5));
+  $('[data-stepper]').dataset.label = `Step ${current} of 5 · ${stepper[current - 1]?.textContent.replace(/^\d+/, '').trim() || ''}`;
   btnPrev.hidden = current === 1;
   btnNext.hidden = current === 5;
   btnSubmit.hidden = current !== 5;

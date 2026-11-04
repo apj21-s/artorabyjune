@@ -64,7 +64,75 @@ async function renderContent() {
       </div>
     </article>`;
   }).join('');
+  wireTierSwitch(list);
   reveal();
+}
+
+// On phones/tablets the featured totes are a swipe row; this nudges it to the next card every few seconds.
+// Pauses while touched, hovered or focused, only runs on screen, loops to the start; off for reduced motion.
+function autoSlide(row, every = 3500) {
+  if (prefersReducedMotion() || !('IntersectionObserver' in window)) return;
+  let timer = null;
+  let visible = false;
+  let paused = false;
+  const step = () => {
+    if (row.scrollWidth <= row.clientWidth + 4) return; // not a swipe row at this width (desktop grid)
+    const card = row.firstElementChild;
+    const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
+    const width = (card?.getBoundingClientRect().width || row.clientWidth) + gap;
+    const atEnd = row.scrollLeft + row.clientWidth >= row.scrollWidth - 8;
+    row.scrollTo({ left: atEnd ? 0 : row.scrollLeft + width, behavior: 'smooth' });
+  };
+  const sync = () => {
+    clearInterval(timer);
+    timer = visible && !paused ? setInterval(step, every) : null;
+  };
+  let resume;
+  const pause = () => { paused = true; clearTimeout(resume); sync(); };
+  const later = () => { clearTimeout(resume); resume = setTimeout(() => { paused = false; sync(); }, 4000); };
+  row.addEventListener('pointerdown', pause, { passive: true });
+  row.addEventListener('pointerup', later, { passive: true });
+  row.addEventListener('touchstart', pause, { passive: true });
+  row.addEventListener('touchend', later, { passive: true });
+  row.addEventListener('mouseenter', pause);
+  row.addEventListener('mouseleave', later);
+  row.addEventListener('focusin', pause);
+  row.addEventListener('focusout', later);
+  new IntersectionObserver(([e]) => { visible = e.isIntersecting; sync(); }, { threshold: 0.5 }).observe(row);
+}
+
+// Phones: three tags in a swipe row are easy to miss, so add a Mini / Classic / Big switcher, dots and a hint.
+function wireTierSwitch(list) {
+  const row = $('[data-tiers]');
+  if (!row || list.length < 2 || $('.tier-switch')) return;
+  const sw = document.createElement('div');
+  sw.className = 'tier-switch';
+  sw.setAttribute('role', 'tablist');
+  sw.setAttribute('aria-label', 'Commission sizes');
+  sw.innerHTML = list.map((t, i) => html`<button type="button" role="tab" data-tier-go="${i}" aria-selected="${String(i === 0)}">${t.title}<small>${inr(t.price)}</small></button>`).join('');
+  row.before(sw);
+  const meta = document.createElement('div');
+  meta.className = 'tier-meta';
+  meta.innerHTML = html`<span class="tier-dots">${list.map((_, i) => raw(`<i class="${i ? '' : 'on'}"></i>`))}</span><span class="tier-hint">swipe to compare →</span>`;
+  row.after(meta);
+  const cards = [...row.children];
+  const go = (i) => row.scrollTo({ left: cards[i].offsetLeft - row.offsetLeft - 16, behavior: 'smooth' });
+  sw.addEventListener('click', (e) => { const b = e.target.closest('[data-tier-go]'); if (b) go(Number(b.dataset.tierGo)); });
+  let raf = 0;
+  row.addEventListener('scroll', () => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => {
+      const mid = row.scrollLeft + row.clientWidth / 2 + row.offsetLeft;
+      let idx = 0;
+      cards.forEach((c, i) => { if (Math.abs(c.offsetLeft + c.offsetWidth / 2 - mid) < Math.abs(cards[idx].offsetLeft + cards[idx].offsetWidth / 2 - mid)) idx = i; });
+      sw.querySelectorAll('button').forEach((b, i) => b.setAttribute('aria-selected', String(i === idx)));
+      meta.querySelectorAll('.tier-dots i').forEach((d, i) => d.classList.toggle('on', i === idx));
+      if (row.scrollLeft > 20) meta.classList.add('is-swiped');
+    });
+  }, { passive: true });
+  // Start on the most-loved size so the best option is what people see first.
+  const feat = list.findIndex((t) => t.featured);
+  if (feat > 0 && row.scrollWidth > row.clientWidth + 4) setTimeout(() => go(feat), 400);
 }
 
 async function renderProducts() {
@@ -79,6 +147,7 @@ async function renderProducts() {
     }
     wrap.innerHTML = items.slice(0, 4).map(productCard).join('');
     reveal(wrap);
+    autoSlide(wrap);
   } catch {
     $('#shop-preview').hidden = true;
   }
@@ -146,6 +215,8 @@ function wireSteps() {
   async function play(i) {
     const texts = await load();
     steps.forEach((step, k) => step.classList.toggle('is-playing', k === i));
+    const row = steps[i].parentElement;
+    if (row.scrollWidth > row.clientWidth + 4) row.scrollTo({ left: steps[i].offsetLeft - row.offsetLeft - 16, behavior: 'smooth' });
     if (urls[i]) URL.revokeObjectURL(urls[i]);
     // A fresh copy of the animated SVG restarts its animation from the beginning.
     urls[i] = URL.createObjectURL(new Blob([texts[i]], { type: 'image/svg+xml' }));

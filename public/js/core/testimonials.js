@@ -77,8 +77,14 @@ export function mountTestimonials(root, reviews, { interval = 6000 } = {}) {
     if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
     if (e.key === 'ArrowRight') { e.preventDefault(); go(1); }
   });
-  ['mouseenter', 'focusin'].forEach((ev) => root.addEventListener(ev, () => { paused = true; restart(); }));
-  ['mouseleave', 'focusout'].forEach((ev) => root.addEventListener(ev, () => { paused = false; restart(); }));
+  let resume;
+  const hold = () => { paused = true; clearTimeout(resume); restart(); };
+  const release = (ms = 0) => { clearTimeout(resume); resume = setTimeout(() => { paused = false; restart(); }, ms); };
+  root.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') hold(); });
+  root.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') release(); });
+  root.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') { hold(); release(5000); } }, { passive: true });
+  root.addEventListener('focusin', (e) => { if (e.target.matches(':focus-visible')) hold(); });
+  root.addEventListener('focusout', () => release(1500));
 
   // Swipe on touch screens.
   let startX = null;
@@ -92,7 +98,7 @@ export function mountTestimonials(root, reviews, { interval = 6000 } = {}) {
 
   // Only autoplay while the section is on screen.
   if ('IntersectionObserver' in window) {
-    new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; restart(); }, { threshold: 0.35 }).observe(root);
+    new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; restart(); }, { threshold: 0.2 }).observe(root);
   }
 
   render();
