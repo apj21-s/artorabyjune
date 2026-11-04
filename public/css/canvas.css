@@ -491,3 +491,35 @@ body:not(.is-admin){ --text-faint:rgba(34,29,25,.7); }
 body:not(.is-admin) :is(.order-no, .letter-kicker, .letter-sheet .field-label, .letter-prompt span, .bundle-title span, .envelope-card strong, .letter-copy dt, .search-empty a){ color:var(--cherry-800); }
 body:not(.is-admin) .ship-k{ color:rgba(34,29,25,.78); }
 body:not(.is-admin) .strip-track span{ opacity:1; }
+
+/* ================= Small phones & tablets ================= */
+@media (max-width:400px){
+  .site-header nav{ padding-left:14px !important; padding-right:10px !important; gap:8px; }
+  .site-header .logo{ font-size:1.08rem; gap:6px; }
+  .nav-actions{ gap:0 !important; }
+  .nav-actions .icon-btn{ width:38px; min-width:38px; padding:0; }
+  .icon-btn-label{ display:none !important; }
+}
+/* Tablets (portrait and landscape): use the width instead of stacking everything */
+@media (min-width:700px) and (max-width:1023px){
+  body:not(.is-admin) .product-grid{ grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px; }
+  body:not(.is-admin) .hero{ grid-template-columns:1.15fr .85fr; gap:24px; padding-top:40px; align-items:center; }
+  body:not(.is-admin) .hero-visual{ order:0; }
+  body:not(.is-admin) .hero h1{ font-size:clamp(2.2rem, 5.2vw, 3rem); }
+  body:not(.is-admin) .product-layout{ grid-template-columns:1fr 1fr; gap:28px; }
+  body:not(.is-admin) .product-gallery{ position:sticky; top:calc(var(--header-h, 70px) + 12px); }
+  body:not(.is-admin) .steps.journey-flow{ grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px; }
+  body:not(.is-admin) .journey-flow .step-art{ width:92px; height:92px; }
+  body:not(.is-admin) .tm{ grid-template-columns:.9fr 1.1fr; gap:36px; max-width:none; }
+  body:not(.is-admin) .footer-grid{ grid-template-columns:1.3fr 1fr 1fr; }
+  body:not(.is-admin) .footer-brand{ grid-column:1 / -1; max-width:520px; }
+}
+/* Phones: comfortable tap targets and tighter rhythm */
+@media (max-width:699px){
+  body:not(.is-admin) section{ padding:64px 0; }
+  body:not(.is-admin) .btn{ min-height:46px; }
+  body:not(.is-admin) .tier-card{ padding:40px 20px 22px; }
+  body:not(.is-admin) .footer-brand{ transform:none; }
+  body:not(.is-admin) .order-form{ transform:none; }
+  .letter-photo{ display:none; }
+}
