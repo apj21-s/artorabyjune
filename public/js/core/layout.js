@@ -140,7 +140,7 @@ function renderCart() {
 function wireCart() {
   renderCart();
   onCartChange(renderCart);
-  $('[data-cart-open]')?.addEventListener('click', () => showSheet($('#cartDrawer')));
+  $$('[data-cart-open]').forEach((btn) => btn.addEventListener('click', () => showSheet($('#cartDrawer'))));
   $('#cartDrawer')?.addEventListener('click', (e) => {
     const q = e.target.closest('[data-qty]');
     if (q) {
@@ -155,7 +155,8 @@ function wireCart() {
 // Any [data-add-to-cart="<id>"] button on the page, given a product lookup.
 // A small copy of the tote flies in an arc into the bag icon, which then wiggles.
 function flyToBag(btn, product) {
-  const target = $('[data-cart-open]');
+  // Fly to whichever bag icon is on screen (header on desktop, tab bar on phones).
+  const target = [...$$('[data-cart-open]')].find((el) => el.offsetParent !== null);
   if (!target || prefersReducedMotion() || !Element.prototype.animate) return;
   const source = btn.closest('article, .product-layout, .product-info')?.querySelector('img');
   const from = (source || btn).getBoundingClientRect();

@@ -604,3 +604,51 @@ body:not(.is-admin) .strip-track span{ opacity:1; }
   body:not(.is-admin) .newsletter-row{ max-width:100%; }
   body:not(.is-admin) .newsletter input{ min-width:0; }
 }
+
+/* ================= Native touch patterns ================= */
+@media (max-width:699px){
+  /* Bag and menu rise from the bottom as sheets, within thumb reach */
+  body:not(.is-admin) :is(.cart-drawer, .mobile-menu){
+    top:auto; left:0; right:0; width:100%; max-height:88vh; border-left:0; border-radius:20px 20px 0 0;
+    transform:translateY(104%); padding-bottom:calc(24px + env(safe-area-inset-bottom)); box-shadow:0 -20px 50px rgba(34,29,25,.25);
+  }
+  body:not(.is-admin) :is(.cart-drawer, .mobile-menu).is-open{ transform:none; }
+  body:not(.is-admin) :is(.cart-drawer, .mobile-menu) .sheet-head{ padding-top:22px; }
+  body:not(.is-admin) :is(.cart-drawer, .mobile-menu)::before{ content:""; position:absolute; top:8px; left:50%; width:44px; height:5px; margin-left:-22px; border-radius:3px; background:rgba(34,29,25,.22); }
+  body:not(.is-admin) .cart-drawer .sheet-head::before{ display:none; }
+  body:not(.is-admin) .search-sheet{ max-height:100vh; height:100vh; border-radius:0; }
+
+  /* Product photos: full-width swipe with dots */
+  body:not(.is-admin) .gallery-swipe{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; margin-inline:-16px; border-radius:0; }
+  body:not(.is-admin) .gallery-swipe::-webkit-scrollbar{ display:none; }
+  body:not(.is-admin) .gallery-swipe img{ flex:0 0 100%; width:100%; aspect-ratio:4/5; object-fit:cover; scroll-snap-align:center; }
+  body:not(.is-admin) .gallery-dots{ display:flex; justify-content:center; gap:6px; margin-top:10px; }
+  body:not(.is-admin) .gallery-dots i{ width:7px; height:7px; border-radius:50%; background:rgba(34,29,25,.25); transition:width .25s, background .25s; }
+  body:not(.is-admin) .gallery-dots i.on{ width:20px; border-radius:4px; background:var(--cherry); }
+  body:not(.is-admin) :is(.gallery-main, .gallery-thumbs){ display:none !important; }
+  body:not(.is-admin) .product-gallery{ position:static; }
+
+  /* Commission: a progress thread instead of five circles; Back/Continue pinned above the tab bar */
+  body:not(.is-admin) .stepper{ position:relative; display:block; height:auto; padding:0 0 12px; margin-bottom:14px; }
+  body:not(.is-admin) .stepper li{ display:none; }
+  body:not(.is-admin) .stepper li.is-current{ display:flex; align-items:center; gap:10px; font:600 .95rem/1 'Space Grotesk', sans-serif; }
+  body:not(.is-admin) .stepper li.is-current::before{ content:"Step"; font:500 .7rem/1 'IBM Plex Mono', monospace; letter-spacing:.12em; text-transform:uppercase; color:var(--text-muted); }
+  body:not(.is-admin) .stepper::before, body:not(.is-admin) .stepper::after{ content:""; position:absolute; left:0; bottom:0; height:4px; border-radius:3px; }
+  body:not(.is-admin) .stepper::before{ right:0; background:repeating-linear-gradient(90deg, rgba(34,29,25,.2) 0 6px, transparent 6px 10px); }
+  body:not(.is-admin) .stepper::after{ width:calc(var(--progress, .2) * 100%); background:var(--cherry); transition:width .4s cubic-bezier(.3,1,.4,1); }
+  body:not(.is-admin) .letter-nav{ position:sticky; bottom:calc(76px + env(safe-area-inset-bottom)); z-index:5; margin:0 -10px; padding:10px; background:rgba(251,246,234,.94); border-radius:14px; box-shadow:0 -8px 20px -14px rgba(34,29,25,.35); }
+  body:not(.is-admin) .letter-nav .letter-hint{ display:none; }
+  body:not(.is-admin) .commission-aside{ display:none; }
+
+  /* Shop: filters stay pinned while you scroll */
+  body:not(.is-admin) .shop-toolbar{ position:sticky; top:0; z-index:20; margin-inline:-16px; padding:10px 16px 8px; background:rgba(236,228,210,.95); backdrop-filter:blur(6px); box-shadow:0 8px 16px -14px rgba(34,29,25,.4); flex-direction:column; align-items:stretch; gap:8px; }
+  body:not(.is-admin) .shop-toolbar .toolbar-right{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
+
+  /* Account: sections as a scrolling tab row */
+  body:not(.is-admin) .account-layout{ display:block; }
+  body:not(.is-admin) .side-tabs{ display:flex; gap:18px; overflow-x:auto; scrollbar-width:none; margin:0 -16px 18px; padding:0 16px; position:sticky; top:0; z-index:10; background:rgba(236,228,210,.95); }
+  body:not(.is-admin) .side-tabs::-webkit-scrollbar{ display:none; }
+  body:not(.is-admin) .side-tab{ flex:none; white-space:nowrap; }
+}
+@media (min-width:700px){ .gallery-swipe, .gallery-dots{ display:none; } }
+@media (max-width:699px){ body:not(.is-admin) .sheet{ z-index:310; } body:not(.is-admin) .sheet-backdrop{ z-index:300; } body:not(.is-admin) .toast-stack{ z-index:320; } }

@@ -33,6 +33,8 @@ function render(p, site) {
 
   root.innerHTML = html`
     <div class="product-gallery">
+      <div class="gallery-swipe" data-swipe aria-label="Photos">${images.map((src, i) => raw(html`<img src="${src}" alt="${i ? '' : `Photo of the ${p.title}`}" width="640" height="800" ${i ? 'loading="lazy"' : ''}>`))}</div>
+      ${images.length > 1 ? raw(html`<div class="gallery-dots" aria-hidden="true">${images.map((_, i) => raw(`<i class="${i ? '' : 'on'}"></i>`))}</div>`) : ''}
       <div class="gallery-main" data-zoom>
         <img src="${images[0]}" alt="Photo of the ${p.title} ${p.kind === 'giftcard' ? 'gift card' : 'tote'}" width="640" height="800" fetchpriority="high" data-main-image>
         <button class="gallery-expand" type="button" data-lightbox aria-label="Open full-size photo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
@@ -163,7 +165,18 @@ function openLightbox(src, alt) {
   box.querySelector('.lightbox-close').focus();
 }
 
+function wireSwipe() {
+  const track = $('[data-swipe]');
+  const dots = $$('.gallery-dots i');
+  if (!track || !dots.length) return;
+  track.addEventListener('scroll', () => {
+    const i = Math.round(track.scrollLeft / track.clientWidth);
+    dots.forEach((d, n) => d.classList.toggle('on', n === i));
+  }, { passive: true });
+}
+
 function wireGallery(p) {
+  wireSwipe();
   $('[data-lightbox]')?.addEventListener('click', (e) => { e.stopPropagation(); openLightbox($('[data-main-image]').src, p.title); });
   const main = $('[data-main-image]');
   const zoom = $('[data-zoom]');

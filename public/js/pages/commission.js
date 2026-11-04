@@ -236,6 +236,7 @@ function go(n) {
     if (i + 1 === current) li.setAttribute('aria-current', 'step');
     else li.removeAttribute('aria-current');
   });
+  $('[data-stepper]').style.setProperty('--progress', String(current / 5));
   btnPrev.hidden = current === 1;
   btnNext.hidden = current === 5;
   btnSubmit.hidden = current !== 5;
