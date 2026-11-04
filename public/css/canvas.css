@@ -728,3 +728,24 @@ body:not(.is-admin) .strip-track span{ opacity:1; }
   .filter-foot::before{ content:""; position:absolute; left:0; right:0; top:0; height:1.4px; background:var(--seam); }
   .filter-foot .btn{ min-height:48px; }
 }
+/* ================= Product cards: aligned like a store shelf =================
+   Equal-height cards, titles held to two lines, price + button pinned to the bottom edge,
+   and a lone last card becomes a wide horizontal card instead of leaving a hole. */
+body:not(.is-admin) .product-grid{ align-items:stretch; }
+body:not(.is-admin) .product-card{ display:flex; flex-direction:column; height:100%; }
+body:not(.is-admin) .product-card .card-link{ display:flex; flex-direction:column; flex:1; }
+body:not(.is-admin) .product-card h3{ display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:2.5em; line-height:1.25; }
+body:not(.is-admin) .product-card .product-meta{ margin-top:auto; }
+@media (max-width:699px){
+  body:not(.is-admin) .product-card .summary{ display:none; }
+  body:not(.is-admin) .product-card h3{ font-size:.98rem; margin:10px 0 4px; }
+  body:not(.is-admin) .product-card .product-meta{ display:grid; gap:8px; }
+  body:not(.is-admin) .product-card .quick-add{ width:100%; min-height:40px; }
+  body:not(.is-admin) :not(#shop-preview) > .product-grid > .product-card:last-child:nth-child(odd){
+    grid-column:1 / -1; display:grid; grid-template-columns:42% 1fr; column-gap:14px; align-items:center;
+  }
+  body:not(.is-admin) :not(#shop-preview) > .product-grid > .product-card:last-child:nth-child(odd) .card-link{ display:contents; }
+  body:not(.is-admin) :not(#shop-preview) > .product-grid > .product-card:last-child:nth-child(odd) .product-media{ grid-row:1 / span 3; }
+  body:not(.is-admin) :not(#shop-preview) > .product-grid > .product-card:last-child:nth-child(odd) h3{ min-height:0; align-self:end; }
+  body:not(.is-admin) :not(#shop-preview) > .product-grid > .product-card:last-child:nth-child(odd) .product-meta{ grid-column:2; align-self:start; margin-top:0; }
+}
