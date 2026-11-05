@@ -138,9 +138,10 @@ function clearContentCache() {
 }
 
 async function seedContent() {
-  for (const [key, data] of Object.entries(DEFAULTS)) {
-    await Content.updateOne({ key }, { $setOnInsert: { key, data } }, { upsert: true });
-  }
+  // One round trip for all sections; only fills in ones that don't exist yet.
+  await Content.bulkWrite(Object.entries(DEFAULTS).map(([key, data]) => ({
+    updateOne: { filter: { key }, update: { $setOnInsert: { key, data } }, upsert: true },
+  })), { ordered: false });
 }
 
 module.exports = { DEFAULTS, EDITABLE_KEYS, getContent, setContent, seedContent, clearContentCache };
