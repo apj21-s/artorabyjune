@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "outputDirectory": "public",
+  "functions": {
+    "api/index.js": { "includeFiles": "views/**", "maxDuration": 30 },
+    "api/cron/reminders.js": { "maxDuration": 60 }
+  },
+  "rewrites": [
+    { "source": "/((?!api/cron/).*)", "destination": "/api/index" }
+  ],
+  "crons": [
+    { "path": "/api/cron/reminders", "schedule": "30 3 * * *" }
+  ]
+}
