@@ -549,7 +549,7 @@ body:not(.is-admin) .strip-track span{ opacity:1; }
   /* Swipe rows with snap instead of long stacks */
   body:not(.is-admin) :is(#shop-preview .product-grid, .tier-line, .steps.journey-flow){
     display:grid; grid-auto-flow:column; grid-template-columns:none; grid-auto-columns:minmax(min(78vw, 300px), 1fr);
-    overflow-x:auto; overscroll-behavior-x:contain; scroll-snap-type:x mandatory; scroll-padding-inline:16px;
+    overflow-x:auto; overflow-y:hidden; overscroll-behavior-x:contain; scroll-snap-type:x mandatory; scroll-padding-inline:16px;
     padding-bottom:16px; margin-inline:-16px; padding-inline:16px; scrollbar-width:none;
   }
   body:not(.is-admin) :is(#shop-preview .product-grid, .tier-line, .steps.journey-flow)::-webkit-scrollbar{ display:none; }
