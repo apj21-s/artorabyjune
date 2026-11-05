@@ -70,7 +70,7 @@ async function renderContent() {
 
 // On phones/tablets the featured totes are a swipe row; this nudges it to the next card every few seconds.
 // Runs nonstop while on screen and loops to the start; off for reduced motion.
-function autoSlide(row, every = 3500) {
+function autoSlide(row, every = 3000) {
   if (prefersReducedMotion() || !('IntersectionObserver' in window)) return;
   let timer = null;
   let visible = false;
