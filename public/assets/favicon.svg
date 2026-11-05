@@ -1,8 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="15" fill="#221D19"/>
-  <path d="M23.5 32 C23 19 29 14.5 34.5 14.5 C40 14.5 44 19 43.5 32" fill="none" stroke="#8F8270" stroke-width="2.2" stroke-linecap="round"/>
-  <path d="M19 32 C18.5 16 25 11 31 11 C37 11 41 16 40.5 32" fill="none" stroke="#F4E9D3" stroke-width="2.6" stroke-linecap="round"/>
-  <path d="M9.5 30.5 H54.5 L52.8 52 Q52.5 55 49.5 55 H14.5 Q11.5 55 11.2 52 Z" fill="#F4E9D3"/>
-  <circle cx="40" cy="39.5" r="4.4" fill="#C98A2A"/>
-  <path d="M10.6 46 C18 40.5 24 41 31 44.5 C38 48 45 46 53.6 41.5 L52.8 52 Q52.5 55 49.5 55 H14.5 Q11.5 55 11.2 52 Z" fill="#C1443C"/>
+  <rect width="64" height="64" rx="14" fill="#F4F4F4"/>
+  <g transform="translate(32 33) scale(1.14) translate(-32 -31.5)">
+  <path d="M24 25 V17.5 C24 7 40 7 40 17.5 V25" fill="none" stroke="#929292" stroke-width="3.4" stroke-linecap="round"/>
+  <path d="M10.5 41.5 Q11 37.5 14 36.5 Q23 40 32 40 Q41 40 50 36.5 Q53 37.5 53.5 41.5 V48 Q53.5 55.5 46 55.5 H18 Q10.5 55.5 10.5 48 Z" fill="#929292"/>
+  <path d="M19.5 20 H44.5 Q48.5 20 48.5 24 V30.5 Q48.5 33.2 45.6 34.2 Q39 37 32 37 Q25 37 18.4 34.2 Q15.5 33.2 15.5 30.5 V24 Q15.5 20 19.5 20 Z" fill="#000"/>
+  <rect x="26.5" y="34" width="11" height="10" rx="2" fill="#F4F4F4"/>
+  <rect x="29.6" y="36.8" width="4.8" height="4.6" rx="1" fill="#000"/>
+</g>
 </svg>
