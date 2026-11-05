@@ -4,3 +4,6 @@ uploads/
 *.log
 .DS_Store
 coverage/
+.vercel
+.env*
+!.env.example
