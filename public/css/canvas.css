@@ -25,12 +25,12 @@ body:not(.is-admin) main > section + section::before{
 }
 
 /* Sewn-in stitching on paper surfaces (an inset dashed outline follows the rounded corners) */
-body:not(.is-admin) :is(.paper, .card, .step, .stat, .faq-item, .review, .planner, .order-card-lg, .empty-state.paper, .occasion, .tm-card, .letter-sheet){
+body:not(.is-admin) :is(.paper, .card, .step, .stat, .faq-item, .review, .order-card-lg, .empty-state.paper, .occasion, .tm-card, .letter-sheet){
   outline:1.2px dashed var(--stitch-soft); outline-offset:-7px;
 }
 body:not(.is-admin) :is(.tm-card){ outline-offset:-4px; outline-color:rgba(205,191,164,.7); }
 body:not(.is-admin) .occasion{ outline-color:rgba(34,29,25,.14); }
-body:not(.is-admin) :is(.cross-sell, .order){ outline:1.2px dashed rgba(251,248,241,.2); outline-offset:-10px; }
+body:not(.is-admin) .cross-sell{ outline:1.2px dashed rgba(251,248,241,.2); outline-offset:-10px; }
 /* Keep keyboard focus obvious on any stitched element that can take focus */
 body:not(.is-admin) :is(.paper, .card, .step, .occasion):focus-visible{ outline:2px solid var(--focus); outline-offset:2px; }
 
@@ -355,8 +355,26 @@ body:not(.is-admin) .stories-grid .card .story-art{ border-radius:1px; }
 body:not(.is-admin) .stories-grid .card h3{ font:700 1.35rem/1.1 'Caveat', cursive; margin-top:4px; }
 
 /* Gifts: colour washes with painted edges instead of box edges */
-body:not(.is-admin) .gift-occasions .occasion{ outline:none; border-radius:56% 44% 48% 52% / 10% 12% 9% 11%; }
-body:not(.is-admin) .gift-occasions .occasion:nth-child(even){ border-radius:44% 56% 52% 48% / 12% 9% 11% 10%; }
+/* Gifts: occasions are plain columns marked with a painted dab, not tinted tiles */
+body:not(.is-admin) .gift-occasions{ gap:clamp(18px, 3vw, 36px); }
+body:not(.is-admin) .gift-occasions .occasion{ background:none; border-radius:0; outline:none; min-height:0; padding:0; justify-content:flex-start; overflow:visible; }
+body:not(.is-admin) .gift-occasions .occasion::before{ position:static; display:block; width:42px; height:38px; margin-bottom:12px; opacity:1; background:currentColor; border-radius:46% 54% 52% 48% / 52% 46% 54% 48%; transform:rotate(-6deg); transition:transform .4s var(--ease-out); }
+body:not(.is-admin) .gift-occasions .occasion:nth-child(even)::before{ border-radius:54% 46% 48% 52% / 46% 52% 48% 54%; transform:rotate(5deg); }
+body:not(.is-admin) .gift-occasions .occasion:hover::before{ transform:rotate(0deg) scale(1.08); }
+/* Gifts: the date planner is a kraft parcel tag; you write the day on its line */
+body:not(.is-admin) .planner{ position:relative; isolation:isolate; padding:30px 36px 30px 76px;
+  filter:drop-shadow(0 1px 1px rgba(59,47,34,.15)) drop-shadow(0 14px 20px rgba(59,47,34,.2)); }
+body:not(.is-admin) main .wrap > section.planner::before{ content:""; position:absolute; inset:0; height:auto; opacity:1; z-index:-1; transform:rotate(-.5deg);
+  background:#E2C79A url("/assets/textures/canvas.webp") 0 0 / 240px;
+  clip-path:polygon(0 26px, 26px 0, 100% 0, 100% 100%, 26px 100%, 0 calc(100% - 26px)); }
+body:not(.is-admin) .planner::after{ content:""; position:absolute; left:28px; top:50%; width:16px; height:16px; margin-top:-8px; border-radius:50%;
+  background:var(--canvas); box-shadow:inset 0 2px 3px rgba(59,47,34,.35), 0 0 0 4px rgba(255,255,255,.35); }
+body:not(.is-admin) .planner p{ color:rgba(34,29,25,.72); }
+body:not(.is-admin) .planner label{ font:500 .7rem/1 'IBM Plex Mono', monospace; letter-spacing:.14em; text-transform:uppercase; color:rgba(34,29,25,.62); }
+body:not(.is-admin) .planner input{ background:transparent; border:0; border-bottom:1.5px solid rgba(34,29,25,.6); border-radius:0; box-shadow:none;
+  padding:6px 2px 4px; font:700 1.45rem/1.2 'Caveat', cursive; color:var(--ink); }
+body:not(.is-admin) .planner input:focus{ outline:none; border-bottom-color:var(--cherry); box-shadow:none; }
+@media (max-width:640px){ body:not(.is-admin) .planner{ padding:26px 22px 26px 56px; } body:not(.is-admin) .planner::after{ left:20px; } }
 
 /* Mobile menu: a canvas sheet with big links on seams */
 body:not(.is-admin) .mobile-menu{ background:var(--canvas-weave); }
