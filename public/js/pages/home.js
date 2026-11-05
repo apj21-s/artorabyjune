@@ -69,12 +69,11 @@ async function renderContent() {
 }
 
 // On phones/tablets the featured totes are a swipe row; this nudges it to the next card every few seconds.
-// Pauses while touched, hovered or focused, only runs on screen, loops to the start; off for reduced motion.
+// Runs nonstop while on screen and loops to the start; off for reduced motion.
 function autoSlide(row, every = 3500) {
   if (prefersReducedMotion() || !('IntersectionObserver' in window)) return;
   let timer = null;
   let visible = false;
-  let paused = false;
   const step = () => {
     if (row.scrollWidth <= row.clientWidth + 4) return; // not a swipe row at this width (desktop grid)
     const card = row.firstElementChild;
@@ -85,22 +84,8 @@ function autoSlide(row, every = 3500) {
   };
   const sync = () => {
     clearInterval(timer);
-    timer = visible && !paused ? setInterval(step, every) : null;
+    timer = visible ? setInterval(step, every) : null;
   };
-  let resume;
-  const pause = () => { paused = true; clearTimeout(resume); sync(); };
-  const later = () => { clearTimeout(resume); resume = setTimeout(() => { paused = false; sync(); }, 4000); };
-  row.addEventListener('pointerdown', pause, { passive: true });
-  row.addEventListener('pointerup', later, { passive: true });
-  row.addEventListener('touchstart', pause, { passive: true });
-  row.addEventListener('touchend', later, { passive: true });
-  row.addEventListener('touchcancel', later, { passive: true });
-  row.addEventListener('pointercancel', later, { passive: true });
-  row.addEventListener('wheel', () => { pause(); later(); }, { passive: true });
-  row.addEventListener('mouseenter', pause);
-  row.addEventListener('mouseleave', later);
-  row.addEventListener('focusin', pause);
-  row.addEventListener('focusout', later);
   new IntersectionObserver(([e]) => { visible = e.isIntersecting; sync(); }, { threshold: 0.5 }).observe(row);
 }
 
@@ -212,30 +197,7 @@ function wireSteps() {
 
   steps.forEach((step) => step.insertAdjacentHTML('beforeend', '<span class="step-progress" aria-hidden="true"></span>'));
 
-  // On phones the steps are a swipe row. Never move it while a finger (or mouse/trackpad) is on it:
-  // a programmatic scroll mid-gesture cancels the swipe and the page stops scrolling. When the
-  // person lets go, carry on from the card they swiped to instead of yanking the row back.
   const row = steps[0].parentElement;
-  const swipeRow = () => row.scrollWidth > row.clientWidth + 4;
-  const leftOf = (step) => step.offsetLeft - row.offsetLeft - 16;
-  let held = false;
-  let settle = null;
-  const nearest = () => steps.reduce((best, step, k) => (
-    Math.abs(leftOf(step) - row.scrollLeft) < Math.abs(leftOf(steps[best]) - row.scrollLeft) ? k : best), 0);
-  const hold = () => { held = true; clearTimeout(settle); };
-  const release = () => {
-    clearTimeout(settle);
-    settle = setTimeout(() => {
-      held = false;
-      if (!timer || !swipeRow()) return;
-      const k = nearest();
-      if (k !== index) { clearTimeout(timer); index = k - 1; next(); }
-    }, 1200);
-  };
-  row.addEventListener('touchstart', hold, { passive: true });
-  row.addEventListener('pointerdown', hold, { passive: true });
-  ['touchend', 'touchcancel', 'pointerup', 'pointercancel'].forEach((ev) => row.addEventListener(ev, release, { passive: true }));
-  row.addEventListener('wheel', () => { hold(); release(); }, { passive: true });
   const load = () => {
     sources = sources || Promise.all(imgs.map((img) => fetch(img.getAttribute('src').replace('-still', '')).then((r) => r.text())));
     return sources;
@@ -243,7 +205,7 @@ function wireSteps() {
   async function play(i) {
     const texts = await load();
     steps.forEach((step, k) => step.classList.toggle('is-playing', k === i));
-    if (!held && swipeRow()) row.scrollTo({ left: leftOf(steps[i]), behavior: 'smooth' });
+    if (row.scrollWidth > row.clientWidth + 4) row.scrollTo({ left: steps[i].offsetLeft - row.offsetLeft - 16, behavior: 'smooth' });
     if (urls[i]) URL.revokeObjectURL(urls[i]);
     // A fresh copy of the animated SVG restarts its animation from the beginning.
     urls[i] = URL.createObjectURL(new Blob([texts[i]], { type: 'image/svg+xml' }));
