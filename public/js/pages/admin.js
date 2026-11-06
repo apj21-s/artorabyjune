@@ -2,6 +2,10 @@ import { $, $$, html, raw, inr, fmtDate, debounce } from '../core/dom.js';
 import { get, post, put, patch, del } from '../core/api.js';
 import { toast, toastError, busy, openModal } from '../core/ui.js';
 import { uploadImage } from '../core/upload.js';
+import { cropImage } from '../core/crop.js';
+
+// Product photos are shown as 4:5 shop cards; other images keep their own shape by default.
+const cropShape = (purpose) => (purpose === 'products' ? 'card' : 'original');
 
 const main = $('[data-admin-main]');
 let me = null;
@@ -130,9 +134,13 @@ function wireImageFields(root) {
       const file = single.files[0];
       if (!file) return;
       const preview = $('.image-preview', box);
+      single.value = '';
+      let fitted;
+      try { fitted = await cropImage(file, { shape: cropShape(box.dataset.imageField) }); } catch (error) { toastError(error); return; }
+      if (!fitted) return;
       preview.classList.add('is-loading');
       try {
-        const url = await uploadImage(file, box.dataset.imageField);
+        const url = await uploadImage(fitted, box.dataset.imageField);
         $('[data-f]', box).value = url;
         preview.innerHTML = html`<img src="${url}" alt="">`;
         markDirty();
@@ -143,12 +151,19 @@ function wireImageFields(root) {
     if (many) {
       const box = many.closest('[data-images-field]');
       const list = $('.images-list', box);
-      for (const file of Array.from(many.files)) {
+      const files = Array.from(many.files);
+      many.value = '';
+      for (const [i, file] of files.entries()) {
+        let fitted;
+        try {
+          fitted = await cropImage(file, { shape: cropShape(box.dataset.imagesField), step: files.length > 1 ? `Photo ${i + 1} of ${files.length}` : '' });
+        } catch (error) { toastError(error); continue; }
+        if (!fitted) continue;
         const ph = document.createElement('figure');
         ph.className = 'is-loading';
         list.appendChild(ph);
         try {
-          const url = await uploadImage(file, box.dataset.imagesField);
+          const url = await uploadImage(fitted, box.dataset.imagesField);
           ph.className = '';
           ph.dataset.src = url;
           ph.innerHTML = html`<img src="${url}" alt=""><button type="button" class="img-remove" aria-label="Remove image">×</button><button type="button" class="img-left" aria-label="Move left">‹</button>`;
