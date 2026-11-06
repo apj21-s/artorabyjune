@@ -3,7 +3,7 @@ process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-secret-test-secret-test-secret-123456';
 process.env.INITIAL_ADMIN_EMAILS = 'june@example.com';
 process.env.APP_URL = 'http://localhost:3000';
-for (const k of ['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET', 'RESEND_API_KEY', 'CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET']) {
+for (const k of ['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET', 'RESEND_API_KEY', 'GMAIL_USER', 'GMAIL_APP_PASSWORD', 'SMTP_HOST', 'ADMIN_NOTIFY_EMAIL', 'SUPPORT_EMAIL', 'CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET']) {
   process.env[k] = '';
 }
 

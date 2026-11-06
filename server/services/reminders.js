@@ -1,5 +1,5 @@
 // One gentle reminder for bags left at checkout. Runs inside the web process every 30 minutes;
-// only active when order emails (Resend) are connected and the toggle in Admin → Site content is on.
+// only active when email is connected and the toggle in Admin → Site content is on.
 const config = require('../config');
 const { CartDraft, Product } = require('../models');
 const { getContent } = require('../lib/content');
@@ -26,7 +26,13 @@ async function runCartReminders({ now = new Date(), force = false } = {}) {
     draft.remindedAt = now;
     await draft.save();
     if (!products.length) continue;
-    await mail.send({ to: draft.email, ...mail.templates.cartReminder(draft, products.map((p) => ({ title: p.title, price: p.price }))) });
+    await mail.send({
+      to: draft.email,
+      ...mail.templates.cartReminder(draft, products.map((p) => ({ title: p.title, price: p.price }))),
+      key: `cart:${draft._id}`,
+      kind: 'cart-reminder',
+      headers: { 'List-Unsubscribe': `<${config.appUrl}/api/cart/unsubscribe/${draft.token}>` },
+    });
     sent += 1;
   }
   return sent;
@@ -34,7 +40,10 @@ async function runCartReminders({ now = new Date(), force = false } = {}) {
 
 function startReminders() {
   if (config.isTest) return null;
-  const timer = setInterval(() => runCartReminders().catch((e) => console.error('[reminders]', e.message)), 30 * 60 * 1000);
+  const timer = setInterval(() => {
+    runCartReminders().catch((e) => console.error('[reminders]', e.message));
+    mail.processOutbox().catch((e) => console.error('[outbox]', e.message));
+  }, 30 * 60 * 1000);
   timer.unref();
   return timer;
 }

@@ -91,8 +91,12 @@ async function issueGiftCards(order) {
   }
   order.giftCardsIssued = true;
   for (const card of cards) {
-    await email.send({ to: card.recipientEmail, ...email.templates.giftCardIssued(card, order) });
-    if (card.recipientEmail !== order.email) await email.send({ to: order.email, ...email.templates.giftCardSent(card, order) });
+    await Promise.all([
+      email.send({ to: card.recipientEmail, ...email.templates.giftCardIssued(card, order), key: `giftcard:${card.code}`, kind: 'giftcard' }),
+      card.recipientEmail !== order.email
+        ? email.send({ to: order.email, ...email.templates.giftCardSent(card, order), key: `giftcard-sent:${card.code}`, kind: 'giftcard' })
+        : null,
+    ]);
   }
   return cards;
 }
@@ -108,8 +112,10 @@ async function completeWithoutPayment(order) {
   await commitStock(order);
   await order.save();
   const payment = order.payments[order.payments.length - 1];
-  await email.send({ to: order.email, ...email.templates.paymentReceived(order, payment) });
-  await email.notifyAdmin(`Gift card order ${order.number}`, [`${order.name} paid with ${order.giftCardCode}.`], `/admin#orders/${order._id}`);
+  await Promise.all([
+    email.send({ to: order.email, ...email.templates.paymentReceived(order, payment), key: `payment:${order._id}:${payment._id}`, kind: 'payment' }),
+    email.notifyAdmin(`Gift card order ${order.number}`, [`${order.name} paid with ${order.giftCardCode}.`], `/admin#orders/${order._id}`, { key: `admin-payment:${order._id}:${payment._id}`, replyTo: order.email }),
+  ]);
   return order;
 }
 
@@ -153,13 +159,15 @@ async function markPaymentPaid(order, { razorpayOrderId, razorpayPaymentId, amou
   await order.save();
 
   const t = email.templates.paymentReceived(order, payment);
-  await email.send({ to: order.email, ...t });
-  await email.notifyAdmin(`${payment.kind} payment · ${order.number}`, [`₹${payment.amount} received from ${order.name} (${order.email}).`], `/admin#orders/${order._id}`);
+  await Promise.all([
+    email.send({ to: order.email, ...t, key: `payment:${order._id}:${payment._id}`, kind: 'payment' }),
+    email.notifyAdmin(`${payment.kind} payment · ${order.number}`, [`₹${payment.amount} received from ${order.name} (${order.email}).`], `/admin#orders/${order._id}`, { key: `admin-payment:${order._id}:${payment._id}`, replyTo: order.email }),
+  ]);
   if (short.length) {
     await email.notifyAdmin(`Action needed: ${order.number} was paid but is out of stock`, [
       `Someone else bought the last one first: ${short.map((i) => `${i.qty} × ${i.title}`).join(', ')}.`,
       'Reach out to the customer to offer a repaint, a swap or a refund.',
-    ], `/admin#orders/${order._id}`);
+    ], `/admin#orders/${order._id}`, { key: `admin-short:${order._id}:${payment._id}`, replyTo: order.email });
   }
   return { order, payment, already: false };
 }
@@ -175,11 +183,12 @@ async function setStatus(order, status, { note = '', notify = true } = {}) {
   await order.save();
   if (notify) {
     const t = email.templates.stageUpdate(order, note);
-    await email.send({ to: order.email, ...t });
+    // Keyed by history position: a repeated save sends once, a new note on the same stage still sends.
+    await email.send({ to: order.email, ...t, key: `stage:${order._id}:${order.history.length}`, kind: 'stage' });
     if (status === 'delivered' && !order.reviewRequestedAt) {
       order.reviewRequestedAt = new Date();
       await order.save();
-      await email.send({ to: order.email, ...email.templates.reviewRequest(order) });
+      await email.send({ to: order.email, ...email.templates.reviewRequest(order), key: `review-request:${order._id}`, kind: 'review-request' });
     }
   }
   return order;

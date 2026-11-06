@@ -9,5 +9,6 @@ module.exports = {
   Subscriber: require('./Subscriber'),
   GiftCard: require('./GiftCard'),
   CartDraft: require('./CartDraft'),
+  EmailLog: require('./EmailLog'),
   ...require('./Counter'),
 };

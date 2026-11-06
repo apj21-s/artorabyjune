@@ -787,21 +787,47 @@ async function viewContent(section) {
 }
 
 // ---------------- Messages / subscribers / admins ----------------
+const EMAIL_STATE = { sent: 'Emailed', failed: 'Email failed', skipped: 'Not emailed' };
+const gmailReply = (m) => `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(m.email)}&su=${encodeURIComponent(`Re: ${m.topic || 'your message'} · Artora by June`)}`;
+
 async function viewMessages() {
-  const { items } = await get('/admin/messages');
+  const [{ items }, log] = await Promise.all([get('/admin/messages'), get('/admin/emails').catch(() => ({ items: [] }))]);
   setBadge('messages', items.filter((m) => !m.handled).length);
+  const failed = log.items.filter((e) => e.status === 'failed');
   main.innerHTML = html`
-    ${raw(head('Messages', 'Notes from the contact form.'))}
+    ${raw(head('Messages', 'Notes from the contact form. Each one also lands in your email inbox; press Reply there to answer.'))}
     <div class="stack">${items.length ? items.map((m) => raw(html`
       <article class="paper pad message ${m.handled ? 'is-handled' : ''}">
-        <div class="panel-title"><div><strong>${m.name}</strong> · <a href="mailto:${m.email}?subject=${encodeURIComponent(`Re: ${m.topic || 'your message'}`)}">${m.email}</a>${m.phone ? ` · ${m.phone}` : ''}<small>${fmtDate(m.createdAt)} · ${m.topic}</small></div>
+        <div class="panel-title"><div><strong>${m.name}</strong> · <a href="mailto:${m.email}?subject=${encodeURIComponent(`Re: ${m.topic || 'your message'}`)}">${m.email}</a>${m.phone ? ` · ${m.phone}` : ''}<small>${fmtDate(m.createdAt)} · ${m.topic}${m.spam ? ' · held as spam' : ''}${m.ownerEmail ? ` · ${EMAIL_STATE[m.ownerEmail] || m.ownerEmail}` : ''}</small></div>
         <label class="check"><input type="checkbox" data-handled="${m._id}" ${m.handled ? 'checked' : ''}> Replied</label></div>
         <p class="message-body">${m.message}</p>
-      </article>`)) : raw('<div class="paper pad empty-state"><h3>Inbox zero.</h3></div>')}</div>`;
+        <p><a href="${gmailReply(m)}" target="_blank" rel="noopener">Reply in Gmail →</a></p>
+      </article>`)) : raw('<div class="paper pad empty-state"><h3>Inbox zero.</h3></div>')}</div>
+    <section class="paper pad" style="margin-top:28px">
+      <div class="panel-title"><div><strong>Email log</strong><small>${log.provider ? `Sending as ${log.sender || log.provider} · alerts go to ${log.inbox}` : 'Email is not connected yet: add GMAIL_USER and GMAIL_APP_PASSWORD in Vercel.'}${failed.length ? ` · ${failed.length} failed (retried daily)` : ''}</small></div>
+        <button class="btn btn-ghost btn-sm" type="button" data-email-test>Send test email</button></div>
+      ${log.items.length ? raw(html`<div style="overflow-x:auto"><table class="admin-table"><thead><tr><th>When</th><th>To</th><th>Subject</th><th>Status</th><th></th></tr></thead><tbody>${log.items.slice(0, 40).map((e) => raw(html`
+        <tr><td>${fmtDate(e.createdAt)}</td><td>${e.to}</td><td>${e.subject}</td>
+        <td title="${e.lastError || ''}">${e.status}${e.attempts > 1 ? ` ×${e.attempts}` : ''}</td>
+        <td>${e.status === 'failed' || e.status === 'queued' ? raw(html`<button class="btn btn-ghost btn-sm" type="button" data-email-retry="${e._id}">Retry</button>`) : ''}</td></tr>`))}</tbody></table></div>`) : raw('<p class="muted">No emails yet.</p>')}
+    </section>`;
   main.onchange = async (e) => {
     const cb = e.target.closest('[data-handled]');
     if (!cb) return;
     try { await patch(`/admin/messages/${cb.dataset.handled}`, { handled: cb.checked }); cb.closest('.message').classList.toggle('is-handled', cb.checked); } catch (error) { toastError(error); }
+  };
+  main.onclick = async (e) => {
+    const test = e.target.closest('[data-email-test]');
+    const again = e.target.closest('[data-email-retry]');
+    if (test) {
+      await busy(test, async () => {
+        try { const r = await post('/admin/emails/test', {}); toast(`Test email sent to ${r.to}. Check the inbox (and Spam, the first time).`); await viewMessages(); } catch (error) { toastError(error); }
+      }, 'Sending…');
+    } else if (again) {
+      await busy(again, async () => {
+        try { await post(`/admin/emails/${again.dataset.emailRetry}/retry`, {}); toast('Sent.'); await viewMessages(); } catch (error) { toastError(error); }
+      });
+    }
   };
 }
 

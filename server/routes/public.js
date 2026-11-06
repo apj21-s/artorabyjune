@@ -1,7 +1,7 @@
 const express = require('express');
 const config = require('../config');
 const { Product, Review, Message, Subscriber, CartDraft } = require('../models');
-const { randomToken } = require('../lib/util');
+const { randomToken, sha256 } = require('../lib/util');
 
 // User text goes into a regex for search, so escape every special character.
 const escapeRegex = (v) => String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -38,7 +38,8 @@ router.get('/bootstrap', async (_req, res) => {
       meetJuneBody: site.meetJuneBody,
       instagram: site.instagram,
       whatsapp: site.whatsapp,
-      supportEmail: site.supportEmail,
+      // The old placeholder address (never a real inbox) falls back to the configured Gmail.
+      supportEmail: (site.supportEmail && !/@artorabyjune\.com$/i.test(site.supportEmail)) ? site.supportEmail : config.brand.supportEmail,
       replyTime: site.replyTime,
       depositPercent: site.depositPercent,
       shippingFlat: site.shippingFlat,
@@ -169,6 +170,8 @@ router.get('/cart/unsubscribe/:token', async (req, res) => {
   res.type('html').send('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Done · Artora by June</title><body style="margin:0;display:grid;place-items:center;min-height:100vh;background:#ECE4D2;font-family:Georgia,serif;color:#221D19;text-align:center;padding:24px"><div><p style="font-size:22px">Done — no more reminders.</p><p><a href="/" style="color:#C1443C">Back to the studio</a></p></div></body>');
 });
 
+// Contact form → studio inbox (Reply-To: customer) + an acknowledgement to the customer.
+const HOUR = 60 * 60 * 1000;
 router.post('/contact', limiters.write, validate(z.object({
   name: str(80).min(1, 'Please tell us your name.'),
   email: email(),
@@ -176,11 +179,50 @@ router.post('/contact', limiters.write, validate(z.object({
   topic: str(60).optional().default('General'),
   message: str(3000).min(5, 'Please write a little more.'),
   website: z.string().max(0, 'Spam detected.').optional(), // honeypot
+  clientId: z.string().regex(/^[\w-]{8,64}$/).optional(),
+  startedAt: z.coerce.number().int().optional(),
 })), async (req, res) => {
-  const { website, ...data } = req.body;
-  await Message.create(data);
-  await mail.notifyAdmin(`New message from ${data.name}`, [`${data.email} ${data.phone}`, `Topic: ${data.topic}`, data.message], '/admin#messages');
-  res.status(201).json({ ok: true });
+  const { website, clientId, startedAt, ...data } = req.body;
+  const ipHash = sha256(`${req.ip}|${config.jwtSecret}`).slice(0, 32);
+  const now = Date.now();
+
+  // Same submission again (double tap, slow network retry): answer as before, send nothing.
+  if (clientId && await Message.exists({ clientId })) return res.status(201).json({ ok: true, ack: true });
+  const twin = await Message.findOne({ email: data.email, message: data.message, createdAt: { $gte: new Date(now - 10 * 60 * 1000) } }).lean();
+  if (twin) return res.status(201).json({ ok: true, ack: twin.ackEmail === 'sent' });
+
+  // Abuse limits that hold across serverless instances (the in-memory limiter does not).
+  if (await Message.countDocuments({ ipHash, createdAt: { $gte: new Date(now - HOUR) } }) >= 5) {
+    return res.status(429).json({ error: 'You’ve sent a few notes already. Please try again in an hour, or message June on Instagram.' });
+  }
+  // Bots fill the form instantly or stuff it with links. Store quietly, send no emails.
+  const tooFast = startedAt && now - startedAt < 3000 && now - startedAt >= 0;
+  const linky = (data.message.match(/https?:\/\/|www\./gi) || []).length > 3;
+  const spam = Boolean(tooFast || linky);
+
+  let msg;
+  try {
+    msg = await Message.create({ ...data, clientId, ipHash, spam });
+  } catch (error) {
+    if (error?.code === 11000) return res.status(201).json({ ok: true, ack: true });
+    throw error;
+  }
+  if (spam) return res.status(201).json({ ok: true, ack: false });
+
+  // At most 3 acknowledgements a day to one address, so the form can't be used to spam strangers.
+  const recent = await Message.countDocuments({ email: data.email, ackEmail: 'sent', createdAt: { $gte: new Date(now - 24 * HOUR) } });
+  const site = await getContent('site');
+  const m = { ...msg.toObject(), replyTime: site.replyTime };
+  const [owner, ack] = await Promise.all([
+    mail.send({ to: mail.adminInbox(), ...mail.templates.enquiryForOwner(m), replyTo: `"${data.name.replace(/["<>]/g, '')}" <${data.email}>`, key: `enquiry-owner:${msg._id}`, kind: 'enquiry' }),
+    recent < 3
+      ? mail.send({ to: data.email, ...mail.templates.enquiryReceived(m), key: `enquiry-ack:${msg._id}`, kind: 'enquiry-ack' })
+      : Promise.resolve({ skipped: true }),
+  ]);
+  const status = (r) => (r.ok ? 'sent' : r.skipped ? 'skipped' : 'failed');
+  await Message.updateOne({ _id: msg._id }, { $set: { ownerEmail: status(owner), ackEmail: status(ack) } });
+  // The note is saved either way; June sees it in Admin → Messages even if an email failed.
+  res.status(201).json({ ok: true, ack: Boolean(ack.ok) });
 });
 
 router.post('/subscribe', limiters.write, validate(z.object({

@@ -1,7 +1,9 @@
-// Vercel scheduled job (see "crons" in vercel.json): sends the abandoned-cart reminder emails.
+// Vercel scheduled job (see "crons" in vercel.json): sends the abandoned-cart reminder emails,
+// then retries any email that failed and sends queued bulk emails (restock alerts).
 // On a normal server these run on a 30-minute timer instead (server/services/reminders.js).
 const { connect } = require('../../server/serverless');
 const { runCartReminders } = require('../../server/services/reminders');
+const { processOutbox } = require('../../server/services/email');
 
 module.exports = async (req, res) => {
   const secret = process.env.CRON_SECRET;
@@ -12,8 +14,9 @@ module.exports = async (req, res) => {
   try {
     await connect();
     const sent = await runCartReminders();
+    const outbox = await processOutbox({ deadline: Date.now() + 40_000 });
     res.setHeader('Content-Type', 'application/json');
-    return res.end(JSON.stringify({ ok: true, sent }));
+    return res.end(JSON.stringify({ ok: true, sent, outbox }));
   } catch (error) {
     console.error('[cron reminders]', error);
     res.statusCode = 500;
