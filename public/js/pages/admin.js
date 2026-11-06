@@ -575,7 +575,7 @@ const COLLECTIONS = {
       { name: 'status', label: 'Visibility', type: 'select', options: [['live', 'Live in shop'], ['draft', 'Draft (hidden)']] },
       { name: 'badge', label: 'Label', placeholder: 'New, Limited, One of one' },
       { name: 'featured', label: 'Feature on the home page', type: 'checkbox' },
-      { name: 'images', label: 'Photos (first is the cover; second shows on hover)', type: 'images', purpose: 'products' },
+      { name: 'images', label: 'Photos (up to 8). The first is the cover, the second shows on hover, and all appear on the product page. Use ‹ to reorder.', type: 'images', purpose: 'products' },
       { name: 'summary', label: 'One-line summary', wide: true },
       { name: 'description', label: 'The story behind it', type: 'textarea' },
       { name: 'tags', label: 'Tags', type: 'tags', help: 'Used for shop filters and gift guide matching (birthday, couples, pets, farewell, festive).' },
