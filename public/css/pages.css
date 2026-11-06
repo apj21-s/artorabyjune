@@ -568,3 +568,4 @@
 @keyframes stepThread{ to{ transform:scaleX(1); } }
 .verify-note{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; padding:14px 0 18px; margin-bottom:18px; border-bottom:1.4px dashed rgba(34,29,25,.25); font-size:.92rem; color:var(--ink-soft); }
 .verify-note p{ flex:1 1 280px; margin:0; }
+.auth-note{ margin:0 0 16px; padding:12px 14px; border-left:3px solid var(--sage, #6b7f5c); background:rgba(107,127,92,.1); font-size:.92rem; line-height:1.5; color:var(--ink); }

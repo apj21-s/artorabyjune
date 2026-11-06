@@ -55,8 +55,15 @@ form.addEventListener('submit', async (e) => {
     try {
       const email = form.email.value.trim();
       if (mode === 'forgot') {
-        const r = await post('/auth/forgot', { email });
-        toast(r.message);
+        await post('/auth/forgot', { email });
+        // A clear message that stays on the page (a toast vanishes too fast to notice).
+        $('[data-auth-note]')?.remove();
+        const note = document.createElement('p');
+        note.className = 'auth-note';
+        note.dataset.authNote = '';
+        note.setAttribute('role', 'status');
+        note.textContent = `If ${email} has an account, a reset link is on its way. Check your inbox and spam folder; the link works for 1 hour. Nothing after a few minutes? Make sure it’s the email you signed up with.`;
+        form.before(note);
         setMode('login');
         return;
       }
