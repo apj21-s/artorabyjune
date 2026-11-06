@@ -213,6 +213,19 @@ const statusPill = (s) => html`<span class="pill pill-${s}">${STATUS_LABEL[s] ||
 const payPill = (s) => html`<span class="pill pay-${s}">${PAY_LABEL[s] || s}</span>`;
 
 // ---------------- Overview ----------------
+// Plain-language "what needs you today" list, so the next job is always obvious.
+function todoPanel(s) {
+  const n = (count, one, many) => `${count} ${count === 1 ? one : many}`;
+  const jobs = [
+    s.awaitingQuote && { text: `${n(s.awaitingQuote, 'commission needs', 'commissions need')} your price and sketch`, how: 'Open it, type the price, add a photo of your sketch, press Send quote.', href: '#orders?status=received&type=commission', cta: 'Price them' },
+    s.awaitingPayment && { text: `${n(s.awaitingPayment, 'shop order is', 'shop orders are')} waiting for payment`, how: 'If the money reached your UPI, open the order and press Record UPI/cash payment.', href: '#orders?status=received&type=shop', cta: 'Check payments' },
+    s.toShip && { text: `${n(s.toShip, 'paid order is', 'paid orders are')} ready to paint, pack or ship`, how: 'Move each one to the next stage. When it leaves, add the courier and tracking number.', href: '#orders?open=1', cta: 'Open orders' },
+    s.pendingReviews && { text: `${n(s.pendingReviews, 'review is', 'reviews are')} waiting for your OK`, how: 'Approve the ones you’d like shown on the website.', href: '#reviews', cta: 'See reviews' },
+    s.unreadMessages && { text: `${n(s.unreadMessages, 'message', 'messages')} from the contact form`, how: 'Reply by email or phone, then mark it as handled.', href: '#messages', cta: 'Read messages' },
+  ].filter(Boolean);
+  return html`<section class="paper pad todo-panel"><h2>What needs you today</h2>${jobs.length ? raw(html`<ol class="todo-list">${jobs.map((j) => raw(html`<li><div><strong>${j.text}</strong><small>${j.how}</small></div><a class="btn btn-ghost btn-sm" href="${j.href}">${j.cta} →</a></li>`))}</ol>`) : raw('<p class="helper-note">Nothing waiting on you right now. New orders, reviews and messages will show up here.</p>')}</section>`;
+}
+
 async function viewOverview() {
   const s = await get('/admin/stats');
   setBadge('orders', s.awaitingQuote);
@@ -221,6 +234,7 @@ async function viewOverview() {
   const pending = s.checklist.filter((c) => !c.done).length;
   main.innerHTML = html`
     ${raw(head(`Good ${new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, ${(me.name || 'June').split(' ')[0]}.`, 'Here’s the studio at a glance.', '<button class="btn btn-primary btn-sm" type="button" data-new-order>+ Add an order from Instagram or WhatsApp</button>'))}
+    ${raw(todoPanel(s))}
     <div class="stat-grid">
       <a class="stat" href="#orders?status=received&type=commission"><span>Waiting for your quote</span><strong>${s.awaitingQuote}</strong><em>commissions</em></a>
       <a class="stat" href="#orders?open=1"><span>Open commissions</span><strong>${s.openCommissions}</strong><em>in progress</em></a>
@@ -281,7 +295,7 @@ async function viewOrders(query) {
     if (open.checked) params.set('open', '1');
     const data = await get(`/admin/orders?${params}`);
     $('[data-orders-table]').innerHTML = data.items.length ? html`
-      <table class="admin-table">
+      <table class="admin-table orders-table">
         <thead><tr><th>Order</th><th>Customer</th><th>What</th><th>Status</th><th>Payment</th><th class="num">Total</th></tr></thead>
         <tbody>${data.items.map((o) => raw(html`
           <tr data-open-order="${o._id}" tabindex="0">

@@ -204,3 +204,25 @@ body.is-admin{ background:#ECE4D2 url("/assets/textures/canvas.webp") 0 0 / 240p
 .mo-address summary{ cursor:pointer; font-weight:600; padding:6px 0; }
 .mo-address[open] summary{ margin-bottom:10px; }
 @media (max-width:640px){ .mo-form .grid-2{ grid-template-columns:1fr; } }
+
+/* Overview: what needs you today */
+.todo-panel{ margin-bottom:20px; }
+.todo-panel h2{ font-size:1.15rem; margin-bottom:10px; }
+.todo-list{ list-style:none; padding:0; margin:0; display:grid; }
+.todo-list li{ display:flex; align-items:center; justify-content:space-between; gap:16px; padding:12px 0; border-top:1px dashed rgba(34,29,25,.18); }
+.todo-list li:first-child{ border-top:0; }
+.todo-list strong{ display:block; }
+.todo-list small{ display:block; color:var(--text-muted); margin-top:2px; }
+.todo-list .btn{ flex:none; }
+@media (max-width:640px){ .todo-list li{ flex-direction:column; align-items:flex-start; } }
+
+/* Phones: each order becomes a small card instead of a squashed table row */
+@media (max-width:640px){
+  .orders-table thead{ display:none; }
+  .orders-table, .orders-table tbody{ display:block; }
+  .orders-table tr{ display:grid; grid-template-columns:1fr auto; gap:4px 12px; padding:14px 12px; border-bottom:1px solid var(--line); }
+  .orders-table td{ padding:0; border:0; }
+  .orders-table td:nth-child(3){ grid-column:1 / -1; color:var(--ink-soft); }
+  .orders-table td:nth-child(4), .orders-table td:nth-child(5){ display:inline-block; }
+  .orders-table td.num{ text-align:right; }
+}

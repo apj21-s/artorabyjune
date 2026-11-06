@@ -24,7 +24,7 @@ router.param('id', (req, res, next, id) => {
 // ---------- Overview ----------
 router.get('/stats', async (_req, res) => {
   const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const [revenue30, revenueAll, openCommissions, awaitingQuote, toShip, lowStock, unreadMessages, pendingReviews, recent] = await Promise.all([
+  const [revenue30, revenueAll, openCommissions, awaitingQuote, toShip, lowStock, unreadMessages, pendingReviews, recent, awaitingPayment] = await Promise.all([
     Order.aggregate([{ $match: { createdAt: { $gte: since30 } } }, { $group: { _id: null, sum: { $sum: '$amountPaid' } } }]),
     Order.aggregate([{ $group: { _id: null, sum: { $sum: '$amountPaid' }, count: { $sum: 1 } } }]),
     Order.countDocuments({ type: 'commission', status: { $nin: ['delivered', 'cancelled'] } }),
@@ -34,6 +34,7 @@ router.get('/stats', async (_req, res) => {
     Message.countDocuments({ handled: false }),
     Review.countDocuments({ approved: false }),
     Order.find().sort({ createdAt: -1 }).limit(6).select('number type name status total amountPaid createdAt paymentStatus').lean(),
+    Order.countDocuments({ type: 'shop', status: 'received', paymentStatus: 'unpaid' }),
   ]);
   const launch = await getContent('launch');
   res.json({
@@ -46,11 +47,12 @@ router.get('/stats', async (_req, res) => {
     lowStock,
     unreadMessages,
     pendingReviews,
+    awaitingPayment,
     recent: recent.map((o) => ({ ...o, statusLabel: STAGES[o.status]?.label || o.status })),
     checklist: [
-      { key: 'payments', label: 'Online payments (Razorpay) connected', done: config.features.razorpay, hint: 'Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in hosting settings.' },
-      { key: 'email', label: 'Order emails (Resend) connected', done: config.features.email, hint: 'Add RESEND_API_KEY and verify your sending domain.' },
-      { key: 'uploads', label: 'Photo storage (Cloudinary) connected', done: config.features.cloudinary, hint: 'Add the three CLOUDINARY_* values.' },
+      { key: 'payments', label: 'Online payments (Razorpay) connected', done: config.features.razorpay, hint: 'Until then customers pay your UPI ID and you confirm it here. Set up: handover guide, Step 10.' },
+      { key: 'email', label: 'Order emails (Resend) connected', done: config.features.email, hint: 'Until then no emails go out. Set up: handover guide, Step 9 (needs your own domain).' },
+      { key: 'uploads', label: 'Photo storage (Cloudinary) connected', done: config.features.cloudinary, hint: 'Needed to upload product photos and sketches. Set up: handover guide, Step 6.' },
       { key: 'pricingReviewed', label: 'Commission prices and turnaround reviewed', done: Boolean(launch.pricingReviewed), manual: true },
       { key: 'reviewsReal', label: 'Sample reviews replaced with real ones', done: Boolean(launch.reviewsReal), manual: true },
       { key: 'legalReviewed', label: 'Privacy, terms and returns pages reviewed', done: Boolean(launch.legalReviewed), manual: true },
