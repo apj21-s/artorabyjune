@@ -425,7 +425,7 @@
 @media (max-width: 860px){
   .paths{ grid-template-columns:1fr; padding-top:48px; }
   .ba-layout, .meet-june, .product-layout, .checkout-layout, .story-detail, .about-hero, .planner, .occasion-section, .contact-layout, .auth-shell, .sketch-reveal{ grid-template-columns:1fr; }
-  .product-gallery, .order-summary{ position:static; }
+  .product-gallery, .order-summary{ position:static; top:auto; }
   .order-summary{ order:-1; }
   .account-layout{ grid-template-columns:1fr; }
   .side-tabs{ position:static; display:flex; overflow-x:auto; gap:6px; padding-bottom:4px; }

@@ -805,3 +805,7 @@ body:not(.is-admin) .product-media:has(img + img)::after{
   background:radial-gradient(circle, rgba(251,248,241,.95) 2.4px, transparent 2.8px) 0 0 / 9px 6px repeat-x; filter:drop-shadow(0 0 1px rgba(34,29,25,.5)); pointer-events:none;
 }
 @media (hover:none){ body:not(.is-admin) .product-card .product-media img{ -webkit-touch-callout:none; user-select:none; } }
+
+/* Checkout codes: input takes the room, the button stays its own size (phones made buttons full width) */
+.coupon-row .btn{ flex:none; width:auto; }
+.coupon-row input{ flex:1 1 auto; min-width:0; padding:10px 12px; }
