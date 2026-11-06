@@ -156,7 +156,7 @@ a.stat:hover{ transform:translateY(-2px); box-shadow:var(--shadow-soft); }
   .stat-grid{ grid-template-columns:repeat(2, minmax(0,1fr)); }
 }
 @media (max-width: 860px){
-  .admin-shell{ grid-template-columns:1fr; }
+  .admin-shell{ grid-template-columns:1fr; align-content:start; }
   .admin-nav{ position:sticky; top:0; z-index:20; height:auto; flex-direction:row; align-items:center; padding:10px 12px; gap:10px; overflow-x:auto; border-right:0; border-bottom:1px dashed var(--line-strong); }
   .admin-nav .logo{ flex:none; }
   .admin-nav nav{ display:flex; gap:4px; }
@@ -168,7 +168,6 @@ a.stat:hover{ transform:translateY(-2px); box-shadow:var(--shadow-soft); }
 @media (max-width: 640px){
   .stat-grid{ grid-template-columns:1fr 1fr; gap:10px; }
   .stat strong{ font-size:1.5rem; }
-  .admin-table th:nth-child(3), .admin-table td:nth-child(3){ display:none; }
   .save-bar{ border-radius:18px; }
 }
 
@@ -230,3 +229,48 @@ body.is-admin{ background:#ECE4D2 url("/assets/textures/canvas.webp") 0 0 / 240p
 /* Opt in to page-change animations like the shop pages do, so moving into the admin doesn't log
    "Transition was aborted" in the console. */
 @view-transition{ navigation:auto; }
+
+/* ---------- Phone navigation: top bar, bottom tabs, "More" sheet ---------- */
+.admin-topbar, .admin-tabbar, .admin-sheet-backdrop, .admin-nav-sheet-title{ display:none; }
+@media (max-width: 860px){
+  .admin-topbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; position:sticky; top:0; z-index:40; padding:12px 16px; background:rgba(236,228,210,.96); backdrop-filter:blur(6px); border-bottom:1px dashed var(--line-strong); }
+  .admin-topbar .logo{ font-size:1.05rem; }
+  .admin-topbar-title{ font:600 .95rem/1 'Space Grotesk', sans-serif; color:var(--ink-soft); }
+  .admin-main{ padding-bottom:calc(96px + env(safe-area-inset-bottom)); }
+
+  .admin-tabbar{ display:grid; grid-template-columns:repeat(5, 1fr); position:fixed; left:0; right:0; bottom:0; z-index:70;
+    padding:6px 4px calc(6px + env(safe-area-inset-bottom)); background:#FBF6EA; border-top:1px solid var(--line); box-shadow:0 -8px 24px -16px rgba(34,29,25,.35); }
+  .admin-tabbar > a, .admin-tabbar > button{ position:relative; display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 2px; border:0; background:none; border-radius:12px;
+    font:600 .7rem/1.1 'Inter', sans-serif; color:var(--ink-soft); text-decoration:none; cursor:pointer; }
+  .admin-tabbar svg{ width:23px; height:23px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .admin-tabbar .is-active{ color:var(--ink); }
+  .admin-tabbar .is-active::before{ content:""; position:absolute; top:-6px; left:30%; right:30%; height:3px; border-radius:0 0 3px 3px; background:var(--cherry); }
+  .admin-tabbar .badge{ position:absolute; top:2px; left:calc(50% + 6px); min-width:18px; height:18px; padding:0 5px; border-radius:999px; background:var(--cherry); color:#fff; font:700 .65rem/18px 'Inter', sans-serif; text-align:center; }
+
+  /* The full menu becomes a sheet that slides up above the tab bar */
+  .admin-nav{ position:fixed; left:0; right:0; bottom:0; top:auto; z-index:60; height:auto; max-height:78vh; overflow:auto; display:block;
+    padding:20px 16px calc(92px + env(safe-area-inset-bottom)); background:#FBF6EA; border:0; border-radius:22px 22px 0 0;
+    box-shadow:0 -18px 40px -18px rgba(34,29,25,.45); transform:translateY(105%); transition:transform .32s cubic-bezier(.2,.7,.3,1); visibility:hidden; }
+  body.admin-menu-open .admin-nav{ transform:none; visibility:visible; }
+  .admin-nav .logo{ display:none; }
+  .admin-nav-sheet-title{ display:block; margin:0 4px 10px; font:500 .72rem/1 'IBM Plex Mono', monospace; letter-spacing:.14em; text-transform:uppercase; color:var(--text-muted); }
+  .admin-nav nav{ display:grid; grid-template-columns:1fr 1fr; gap:0 12px; }
+  .admin-nav nav a{ display:flex; align-items:center; justify-content:space-between; padding:14px 6px; border-bottom:1px dashed var(--line); border-radius:0; white-space:normal; font-weight:600; }
+  .admin-nav nav a.is-active{ color:var(--cherry); background:none; box-shadow:none; }
+  .admin-nav-foot{ display:flex; justify-content:space-between; margin-top:16px; padding:0 6px; }
+  .admin-sheet-backdrop{ display:block; position:fixed; inset:0; z-index:55; background:rgba(34,29,25,.35); }
+  .admin-sheet-backdrop[hidden]{ display:none; }
+}
+@media (prefers-reduced-motion: reduce){ .admin-nav{ transition:none; } }
+
+/* Phones: every admin table becomes a list of small cards; each value keeps its column name */
+@media (max-width:640px){
+  .admin-table:not(.orders-table) thead{ display:none; }
+  .admin-table:not(.orders-table), .admin-table:not(.orders-table) tbody{ display:block; }
+  .admin-table:not(.orders-table) tr{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; padding:14px 12px; border-bottom:1px solid var(--line); }
+  .admin-table:not(.orders-table) td{ padding:0; border:0; text-align:left !important; }
+  .admin-table:not(.orders-table) td[data-label]:not(:first-child)::before{ content:attr(data-label); display:block; font:500 .66rem/1.3 'IBM Plex Mono', monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--text-faint); }
+  .admin-table:not(.orders-table) td:first-child, .admin-table:not(.orders-table) td.thumb-cell + td{ flex:1 1 60%; }
+  .admin-table:not(.orders-table) td:last-child{ margin-left:auto; }
+
+}

@@ -7,7 +7,9 @@
 <body data-page="admin" class="is-admin">
 <a class="skip-link" href="#main">Skip to content</a>
 <div class="admin-shell">
-  <aside class="admin-nav" aria-label="Admin">
+  <header class="admin-topbar"><a href="/" class="logo"><span class="dot"></span>Artora <span class="accent">studio</span></a><span class="admin-topbar-title" data-current-section>Overview</span></header>
+  <aside class="admin-nav" aria-label="Admin" id="adminMenu">
+    <p class="admin-nav-sheet-title">All sections</p>
     <a href="/" class="logo"><span class="dot"></span>Artora <span class="accent">studio</span></a>
     <nav>
       <a href="#overview" data-nav="overview">Overview</a>
@@ -23,6 +25,14 @@
     </nav>
     <div class="admin-nav-foot"><a href="/">View site ↗</a><button class="link-btn" type="button" data-logout>Sign out</button></div>
   </aside>
+  <div class="admin-sheet-backdrop" data-menu-close hidden></div>
+  <nav class="admin-tabbar" aria-label="Quick links">
+    <a href="#overview" data-nav="overview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9H4z M10 20v-6h4v6"/></svg><span>Overview</span></a>
+    <a href="#orders" data-nav="orders"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 13H7L6 7z M9 7a3 3 0 0 1 6 0"/></svg><span>Orders</span><span class="badge" data-badge="orders" hidden></span></a>
+    <a href="#products" data-nav="products"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l8-4 8 4v8l-8 4-8-4z M4 8l8 4 8-4 M12 12v8"/></svg><span>Products</span></a>
+    <a href="#messages" data-nav="messages"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v11H8l-4 3z"/></svg><span>Messages</span><span class="badge" data-badge="messages" hidden></span></a>
+    <button type="button" data-menu-toggle aria-expanded="false" aria-controls="adminMenu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16 M4 12h16 M4 17h16"/></svg><span>More</span></button>
+  </nav>
   <main id="main" class="admin-main" data-admin-main aria-live="polite">
     <div class="skeleton-block"></div>
   </main>

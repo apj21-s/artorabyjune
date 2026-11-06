@@ -663,6 +663,8 @@ async function viewCollection(key) {
         <tbody>${items.map((item) => raw(html`<tr data-edit="${item._id}" tabindex="0">${raw(cfg.row(item))}<td class="num"><button class="btn btn-link btn-sm" type="button" data-delete="${item._id}">Delete</button></td></tr>`))}</tbody>
       </table>`) : raw(html`<div class="empty-state"><h3>No ${cfg.title.toLowerCase()} yet.</h3><button class="btn btn-primary" type="button" data-new>Add the first ${cfg.singular}</button></div>`)}
     </div>`;
+  // Phones show tables as cards; give each cell its column name.
+  $$('.admin-table tbody tr', main).forEach((tr) => [...tr.children].forEach((td, i) => { if (cfg.cols[i]) td.dataset.label = cfg.cols[i]; }));
   const byId = new Map(items.map((i) => [i._id, i]));
   const edit = (item) => {
     const isNew = !item._id;
@@ -983,11 +985,23 @@ async function viewAdmins() {
 // Router
 // ======================================================================
 function setBadge(name, count) {
-  const b = $(`[data-badge="${name}"]`);
-  if (!b) return;
-  b.hidden = !count;
-  b.textContent = String(count);
+  $$(`[data-badge="${name}"]`).forEach((b) => {
+    b.hidden = !count;
+    b.textContent = String(count);
+  });
 }
+
+// Phones: bottom tab bar + "More" sheet listing every section (no sideways-scrolling menu).
+function setMenu(open) {
+  document.body.classList.toggle('admin-menu-open', open);
+  $('[data-menu-close]').hidden = !open;
+  $('[data-menu-toggle]')?.setAttribute('aria-expanded', String(open));
+}
+document.addEventListener('click', (e) => {
+  if (e.target.closest('[data-menu-toggle]')) { setMenu(!document.body.classList.contains('admin-menu-open')); return; }
+  if (e.target.closest('[data-menu-close]') || e.target.closest('.admin-nav a')) setMenu(false);
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.body.classList.contains('admin-menu-open')) setMenu(false); });
 
 let currentRoute = '';
 async function route() {
@@ -1001,6 +1015,10 @@ async function route() {
   const [pathPart, query = ''] = hash.split('?');
   const [view, arg] = pathPart.split('/');
   $$('[data-nav]').forEach((a) => a.classList.toggle('is-active', a.dataset.nav === view));
+  const current = $(`.admin-nav [data-nav="${view}"]`) || $('.admin-nav [data-nav="overview"]');
+  $('[data-current-section]').textContent = current ? current.firstChild.textContent.trim() : '';
+  const inMore = !['overview', 'orders', 'products', 'messages'].includes(view);
+  $('[data-menu-toggle]')?.classList.toggle('is-active', inMore);
   main.onclick = null;
   main.onchange = null;
   main.onkeydown = null;
