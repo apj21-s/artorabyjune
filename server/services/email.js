@@ -182,6 +182,16 @@ const templates = {
       }),
     };
   },
+  verifyEmail(user, link) {
+    return {
+      subject: 'Confirm your email for Artora by June',
+      html: layout({
+        title: 'Confirm your email',
+        lines: ['Tap the button to confirm this is your email. Any orders placed with it will then appear in your account.', 'If you didn’t create an account, ignore this email.'],
+        cta: { href: link, label: 'Confirm my email' },
+      }),
+    };
+  },
   passwordReset(user, link) {
     return {
       subject: 'Reset your Artora password',

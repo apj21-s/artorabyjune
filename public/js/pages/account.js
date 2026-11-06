@@ -65,13 +65,26 @@ async function loadSaved() {
   }
 }
 
-async function loadOrders() {
+// Orders placed with this email (on the website as a guest, or added by June from a DM) appear once the
+// email is confirmed. Until then, the private order link June sends also adds an order here.
+function verifyNote(user) {
+  if (user.emailVerified) return '';
+  return `<div class="verify-note"><p><strong>Don’t see an order?</strong> Confirm your email and every order placed with <em>${user.email.replace(/[<>&"]/g, '')}</em> will appear here. Or open the order link June sent you while you’re signed in.</p><button class="btn btn-ghost btn-sm" type="button" data-resend-verify>Email me a confirmation link</button></div>`;
+}
+
+async function loadOrders(user) {
   const wrap = $('[data-orders]');
   try {
     const { items } = await get('/me/orders');
-    wrap.innerHTML = items.length
+    wrap.innerHTML = verifyNote(user) + (items.length
       ? `<div class="stack">${items.map(orderCard).join('')}</div>`
-      : `${emptyState({ title: 'No stories yet.', body: 'When you commission or buy a tote, it will live here with its timeline.', cta: 'Begin your story', href: '/commission' })}`;
+      : `${emptyState({ title: 'No stories yet.', body: 'When you commission or buy a tote, it will live here with its timeline.', cta: 'Begin your story', href: '/commission' })}`);
+    $('[data-resend-verify]', wrap)?.addEventListener('click', async (e) => {
+      try {
+        const res = await post('/auth/verify-email/resend');
+        e.target.closest('.verify-note').innerHTML = res.sent ? '<p>Sent. Check your inbox (and spam) for a link from Artora by June.</p>' : '<p>Email confirmation isn’t switched on yet. Open the order link June sent you while signed in, and the order will appear here.</p>';
+      } catch (error) { toastError(error); }
+    });
   } catch (error) {
     wrap.innerHTML = `<p class="helper-note">${error.message}</p>`;
   }
@@ -220,7 +233,11 @@ function ensureModal() {
   wireProfile(user);
   wireMemories();
   wireAddresses();
-  loadOrders();
+  const verified = new URLSearchParams(location.search).get('verified');
+  if (verified === '1') { user.emailVerified = true; toast('Email confirmed. Your orders are all here.'); }
+  if (verified === 'expired') toast('That confirmation link has expired. Ask for a new one below.', { type: 'error' });
+  if (verified) history.replaceState(null, '', '/account');
+  loadOrders(user);
   loadSaved();
   try {
     const profile = await get('/me/profile');

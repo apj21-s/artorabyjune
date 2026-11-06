@@ -8,7 +8,9 @@ const router = express.Router();
 router.use(requireAuth);
 
 router.get('/orders', async (req, res) => {
-  const orders = await Order.find({ $or: [{ userId: req.user._id }, { email: req.user.email }] }).sort({ createdAt: -1 }).limit(50);
+  // Orders matched only by email are shown once the email is confirmed (see auth.claimGuestOrders).
+  const match = req.user.emailVerified ? { $or: [{ userId: req.user._id }, { email: req.user.email }] } : { userId: req.user._id };
+  const orders = await Order.find(match).sort({ createdAt: -1 }).limit(50);
   res.json({ items: orders.map((o) => ({ ...customerView(o), token: o.accessToken })) });
 });
 

@@ -333,7 +333,7 @@ async function newOrderForm() {
     title: 'Add an order',
     wide: true,
     body: html`<form class="mo-form stack" data-mo novalidate>
-      <p class="helper-note">For orders that came in on Instagram, WhatsApp, a call or in person. It works just like a website order: it gets an order number, shows in your list, and the customer can see it in their account by signing in with the email you enter here.</p>
+      <p class="helper-note">For orders that came in on Instagram, WhatsApp, a call or in person. It works just like a website order: it gets an order number and shows in your list. After saving, press <strong>Copy customer link</strong> and send it to them in the chat. That link shows them the order, and adds it to their account if they’re signed in.</p>
 
       <fieldset class="mo-step"><legend><span>1</span> Where did it come from?</legend>
         <div class="mo-choices">${Object.entries({ instagram: 'Instagram', whatsapp: 'WhatsApp', in_person: 'In person', phone: 'Phone call', other: 'Other' }).map(([k, v], i) => raw(html`<label><input type="radio" name="source" value="${k}" ${i === 0 ? 'checked' : ''}><span>${v}</span></label>`))}</div>
@@ -359,7 +359,7 @@ async function newOrderForm() {
           <div class="field"><label for="moName">Name</label><input id="moName" name="name" required></div>
           <div class="field"><label for="moPhone">Phone <small>(optional)</small></label><input id="moPhone" name="phone" inputmode="tel"></div>
         </div>
-        <div class="field"><label for="moEmail">Email</label><input id="moEmail" name="email" type="email" required placeholder="Ask them for it in the chat"><small class="helper-note">They’ll see this order when they sign in to the website with this email, and get order updates here.</small></div>
+        <div class="field"><label for="moEmail">Email</label><input id="moEmail" name="email" type="email" required placeholder="Ask them for it in the chat"><small class="helper-note">Order updates go to this email. Once they confirm it on the website, the order also appears in their account.</small></div>
         <details class="mo-address"><summary>Add their delivery address now <small>(you can also add it later)</small></summary>
           <div class="field"><label for="moL1">Address</label><input id="moL1" name="address.line1" placeholder="House, street, area"></div>
           <div class="field"><label for="moL2">Landmark <small>(optional)</small></label><input id="moL2" name="address.line2"></div>
@@ -409,7 +409,7 @@ async function newOrderForm() {
         try {
           const res = await busy(btn, () => post('/admin/orders/manual', payload), 'Creating…');
           close();
-          toast(`Order ${res.number} created.`);
+          toast(`Order ${res.number} created. Now press “Copy customer link” and send it to them in the chat.`, { timeout: 8000 });
           location.hash = `orders/${res.id}`;
         } catch (error) { toastError(error); }
       });

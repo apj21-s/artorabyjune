@@ -218,6 +218,12 @@ router.get('/orders/track', limiters.write, async (req, res) => {
 router.get('/orders/:number', async (req, res) => {
   const order = await findAccessibleOrder(req);
   if (!order) return res.status(404).json({ error: 'We couldn’t open that order. Try the link in your email, or sign in.' });
+  // Opening the private order link while signed in adds the order to that account (the link is the proof).
+  const token = String(req.query.t || '');
+  if (req.user && !order.userId && token && order.accessToken && safeEqual(token, order.accessToken)) {
+    order.userId = req.user._id;
+    await order.save();
+  }
   res.json({ order: customerView(order), payments: razorpay.enabled() ? 'razorpay' : 'manual' });
 });
 

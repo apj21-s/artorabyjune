@@ -566,3 +566,5 @@
 .step-progress{ position:absolute; left:22px; right:22px; bottom:14px; height:1.6px; background:repeating-linear-gradient(90deg, var(--cherry) 0 7px, transparent 7px 12px); transform:scaleX(0); transform-origin:0 50%; opacity:0; pointer-events:none; }
 .step.is-playing .step-progress{ opacity:.8; animation:stepThread 5.6s linear forwards; }
 @keyframes stepThread{ to{ transform:scaleX(1); } }
+.verify-note{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; padding:14px 0 18px; margin-bottom:18px; border-bottom:1.4px dashed rgba(34,29,25,.25); font-size:.92rem; color:var(--ink-soft); }
+.verify-note p{ flex:1 1 280px; margin:0; }

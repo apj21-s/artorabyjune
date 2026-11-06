@@ -226,10 +226,22 @@ describe('commission journey', () => {
     assert.ok(!JSON.stringify(reviews).includes('Biscuit approves'), 'new reviews wait for approval');
   });
 
-  test('a guest order shows up once the customer makes an account', async () => {
+  test('a guest order shows up only once the customer confirms the email', async () => {
     const agent = await signedIn(app, { email: 'rehan@example.com', name: 'Rehan' });
+    const before = await agent.get('/api/me/orders');
+    assert.ok(!JSON.stringify(before.body).includes(number), 'an unconfirmed account must not see orders placed with that email');
+    const { User } = require('../server/models');
+    await User.updateOne({ email: 'rehan@example.com' }, { $set: { emailVerified: true } });
+    const after = await agent.get('/api/me/orders');
+    assert.ok(JSON.stringify(after.body).includes(number));
+  });
+
+  test('opening the private order link while signed in adds the order to the account', async () => {
+    const agent = await signedIn(app, { email: 'someone.else@example.com', name: 'Someone' });
+    const placed = await request(app).post('/api/commissions').send({ tier: 'mini', story: 'A lighthouse for my dad, please.', name: 'Dad', email: 'dad.order@example.com' });
+    await agent.get(`/api/orders/${placed.body.number}?t=${placed.body.token}`).expect(200);
     const mine = await agent.get('/api/me/orders');
-    assert.ok(JSON.stringify(mine.body).includes(number));
+    assert.ok(JSON.stringify(mine.body).includes(placed.body.number));
   });
 });
 
