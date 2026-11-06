@@ -4,8 +4,8 @@
   "regions": ["bom1"],
   "outputDirectory": "public",
   "functions": {
-    "api/index.js": { "includeFiles": "views/**", "maxDuration": 30 },
-    "api/cron/reminders.js": { "maxDuration": 60 }
+    "api/index.js": { "includeFiles": "{views/**,public/assets/email/**}", "maxDuration": 30 },
+    "api/cron/reminders.js": { "includeFiles": "public/assets/email/**", "maxDuration": 60 }
   },
   "rewrites": [
     { "source": "/((?!api/cron/).*)", "destination": "/api/index" }

@@ -151,20 +151,42 @@ function EmailLog() {
   return require('../models').EmailLog;
 }
 
+// The logo and hills travel inside the email (inline images), so they show even when
+// a mail app blocks remote images, and always match the current files.
+const INLINE = ['mark.png', 'hills.png'];
+const inlineCache = {};
+function withInlineImages(html = '') {
+  const attachments = [];
+  let out = html;
+  for (const name of INLINE) {
+    const url = `${config.appUrl}/assets/email/${name}`;
+    if (!out.includes(url)) continue;
+    try {
+      inlineCache[name] ||= require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'public', 'assets', 'email', name));
+    } catch { continue; } // file missing: keep the remote link
+    const cid = `${name.replace('.png', '')}@artora`;
+    out = out.split(url).join(`cid:${cid}`);
+    attachments.push({ filename: name, content: inlineCache[name], cid, contentDisposition: 'inline' });
+  }
+  return { html: out, attachments };
+}
+
 async function deliver(log) {
   log.status = 'sending';
   log.attempts += 1;
   log.provider = providerName();
   await log.save();
   try {
+    const inline = config.emailProvider === 'resend' ? { html: log.html, attachments: [] } : withInlineImages(log.html);
     const info = await (await getTransport()).sendMail({
       from: fromAddress(),
       to: log.to,
       replyTo: log.replyTo || undefined,
       subject: log.subject,
-      html: log.html,
+      html: inline.html,
       text: log.text,
       headers: log.headers || undefined,
+      attachments: inline.attachments.length ? inline.attachments : undefined,
     });
     log.status = 'sent';
     log.messageId = info?.messageId || '';

@@ -44,6 +44,9 @@ describe('enquiries', () => {
     assert.match(owner.html, /9876543210/);
     assert.match(owner.text, /Could you paint our cat Mango/);
     assert.match(ack.html, /Could you paint our cat Mango/);
+    // Logo and hills are embedded, not loaded from the website.
+    assert.match(owner.html, /src="cid:mark@artora"/);
+    assert.deepEqual(owner.attachments.map((a) => a.cid).sort(), ['hills@artora', 'mark@artora']);
     const msg = await Message.findOne();
     assert.equal(msg.ownerEmail, 'sent');
     assert.equal(msg.ackEmail, 'sent');
