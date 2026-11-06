@@ -294,6 +294,7 @@ async function viewOrders(query) {
     if (status.value) params.set('status', status.value);
     if (open.checked) params.set('open', '1');
     const data = await get(`/admin/orders?${params}`);
+    if (!$('[data-orders-table]')) return; // left the Orders page meanwhile
     $('[data-orders-table]').innerHTML = data.items.length ? html`
       <table class="admin-table orders-table">
         <thead><tr><th>Order</th><th>Customer</th><th>What</th><th>Status</th><th>Payment</th><th class="num">Total</th></tr></thead>
@@ -312,8 +313,10 @@ async function viewOrders(query) {
   const reload = () => { page = 1; load().catch(toastError); };
   qInput.addEventListener('input', debounce(reload, 300));
   [type, status, open].forEach((el) => el.addEventListener('change', reload));
-  main.addEventListener('click', (e) => {
-    const p = e.target.closest('[data-page]');
+  // Listen on the table itself (it is replaced when you leave Orders). Matching only the pager
+  // buttons matters: <body data-page="admin"> also has a data-page attribute.
+  $('[data-orders-table]').addEventListener('click', (e) => {
+    const p = e.target.closest('.pager [data-page]');
     if (p) { page += Number(p.dataset.page); load().catch(toastError); }
   });
   await load();
