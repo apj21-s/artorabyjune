@@ -16,7 +16,11 @@ export function toast(message, { type = 'info', timeout = 4200 } = {}) {
   el.addEventListener('click', close);
   setTimeout(close, timeout);
 }
-export const toastError = (error) => toast(error?.message || String(error), { type: 'error', timeout: 6000 });
+export const toastError = (error) => {
+  // Keep the full details in the browser console (F12) so a problem can be traced to its line.
+  if (error && !error.status) console.error('[artora]', error);
+  toast(error?.message || String(error), { type: 'error', timeout: 6000 });
+};
 
 // ---------- Focus trap ----------
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
