@@ -164,6 +164,13 @@ router.get('/cart/draft/:token', async (req, res) => {
   res.json({ items: draft.items.map((i) => ({ qty: i.qty, product: products.find((p) => String(p._id) === String(i.productId))?.toPublic() })).filter((i) => i.product) });
 });
 
+// One-click unsubscribe (RFC 8058): Gmail and others POST here from their own "Unsubscribe" button.
+router.post('/cart/unsubscribe/:token', express.urlencoded({ extended: false, limit: '1kb' }), async (req, res) => {
+  const draft = await CartDraft.findOne({ token: String(req.params.token) });
+  if (draft) await CartDraft.updateMany({ email: draft.email }, { $set: { unsubscribed: true } });
+  res.json({ ok: true });
+});
+
 router.get('/cart/unsubscribe/:token', async (req, res) => {
   const draft = await CartDraft.findOne({ token: String(req.params.token) });
   if (draft) await CartDraft.updateMany({ email: draft.email }, { $set: { unsubscribed: true } });

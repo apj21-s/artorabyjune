@@ -31,7 +31,10 @@ async function runCartReminders({ now = new Date(), force = false } = {}) {
       ...mail.templates.cartReminder(draft, products.map((p) => ({ title: p.title, price: p.price }))),
       key: `cart:${draft._id}`,
       kind: 'cart-reminder',
-      headers: { 'List-Unsubscribe': `<${config.appUrl}/api/cart/unsubscribe/${draft.token}>` },
+      headers: {
+        'List-Unsubscribe': `<${config.appUrl}/api/cart/unsubscribe/${draft.token}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      },
     });
     sent += 1;
   }
