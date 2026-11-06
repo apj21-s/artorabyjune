@@ -226,3 +226,7 @@ body.is-admin{ background:#ECE4D2 url("/assets/textures/canvas.webp") 0 0 / 240p
   .orders-table td:nth-child(4), .orders-table td:nth-child(5){ display:inline-block; }
   .orders-table td.num{ text-align:right; }
 }
+
+/* Opt in to page-change animations like the shop pages do, so moving into the admin doesn't log
+   "Transition was aborted" in the console. */
+@view-transition{ navigation:auto; }
