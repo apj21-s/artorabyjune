@@ -64,24 +64,230 @@ function orderLink(order) {
   return `${config.appUrl}/order/${encodeURIComponent(order.number)}?t=${encodeURIComponent(order.accessToken)}`;
 }
 
-async function send({ to, subject, html, replyTo }) {
-  if (!to) return { skipped: true };
-  if (!config.features.email) {
-    if (!config.isTest) console.log(`[email] (not sent — RESEND_API_KEY missing) to=${to} subject="${subject}"`);
-    return { skipped: true };
+// ---------- Transport ----------
+let transport = null; // reused across warm serverless invocations (one login, pooled connection)
+let testTransport = null;
+
+function providerName() {
+  return testTransport ? 'test' : config.emailProvider;
+}
+
+function fromAddress() {
+  const e = config.email;
+  const name = e.fromName.replace(/"/g, '');
+  if (config.emailProvider === 'resend') return config.resend.from;
+  if (config.emailProvider === 'smtp') return e.from || `"${name}" <${e.smtpUser}>`;
+  return `"${name}" <${e.gmailUser || 'studio@example.com'}>`;
+}
+
+async function getTransport() {
+  if (testTransport) return testTransport;
+  if (transport) return transport;
+  const e = config.email;
+  if (config.emailProvider === 'resend') {
+    transport = {
+      async sendMail(msg) {
+        const res = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${config.resend.apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from: msg.from, to: msg.to, subject: msg.subject, html: msg.html, text: msg.text, reply_to: msg.replyTo, headers: msg.headers }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(`Resend ${res.status}: ${body.message || 'send failed'}`);
+        return { messageId: body.id };
+      },
+    };
+    return transport;
   }
+  const nodemailer = require('nodemailer');
+  const smtp = config.emailProvider === 'smtp';
+  const host = smtp ? e.smtpHost : 'smtp.gmail.com';
+  const auth = smtp ? { user: e.smtpUser, pass: e.smtpPass } : { user: e.gmailUser, pass: e.gmailPass };
+  // Connect over IPv4: some hosts have no IPv6 route, and nodemailer may pick IPv6 first.
+  const ip = await new Promise((resolve) => {
+    require('dns').lookup(host, { family: 4 }, (err, address) => resolve(err ? host : address));
+  });
+  transport = nodemailer.createTransport({
+    host: ip,
+    port: smtp ? e.smtpPort : 465,
+    secure: smtp ? e.smtpPort === 465 : true,
+    tls: { servername: host },
+    auth,
+    pool: true,
+    maxConnections: 2,
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
+  });
+  return transport;
+}
+
+// Plain-text copy of an HTML email: better delivery, and readable on any client.
+function htmlToText(html = '') {
+  return String(html)
+    .replace(/<head[\s\S]*?<\/head>/gi, '')
+    .replace(/<span style="display:none[\s\S]*?<\/span>/i, '')
+    .replace(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, (_m, href, label) => {
+      const text = label.replace(/<[^>]+>/g, '').trim();
+      return text && !href.startsWith('mailto:') && text !== href ? `${text} (${href})` : text || href;
+    })
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|h1|h2|h3|div|tr|table)>/gi, '\n')
+    .replace(/<\/td>/gi, '  ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function shortError(error) {
+  return String(error?.message || error || 'unknown error').replace(config.email.gmailPass || '\u0000', '***').slice(0, 300);
+}
+
+// ---------- Outbox ----------
+function EmailLog() {
+  return require('../models').EmailLog;
+}
+
+// The logo and hills travel inside the email (inline images), so they show even when
+// a mail app blocks remote images, and always match the current files.
+const INLINE = ['mark.png', 'hills.png'];
+const inlineCache = {};
+function withInlineImages(html = '') {
+  const attachments = [];
+  let out = html;
+  for (const name of INLINE) {
+    const url = `${config.appUrl}/assets/email/${name}`;
+    if (!out.includes(url)) continue;
+    try {
+      inlineCache[name] ||= require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'public', 'assets', 'email', name));
+    } catch { continue; } // file missing: keep the remote link
+    const cid = `${name.replace('.png', '')}@artora`;
+    out = out.split(url).join(`cid:${cid}`);
+    attachments.push({ filename: name, content: inlineCache[name], cid, contentDisposition: 'inline' });
+  }
+  return { html: out, attachments };
+}
+
+async function deliver(log) {
+  log.status = 'sending';
+  log.attempts += 1;
+  log.provider = providerName();
+  await log.save();
   try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${config.resend.apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: config.resend.from, to, subject, html, reply_to: replyTo || config.brand.supportEmail }),
+    const inline = config.emailProvider === 'resend' ? { html: log.html, attachments: [] } : withInlineImages(log.html);
+    const info = await (await getTransport()).sendMail({
+      from: fromAddress(),
+      to: log.to,
+      replyTo: log.replyTo || undefined,
+      subject: log.subject,
+      html: inline.html,
+      text: log.text,
+      headers: log.headers || undefined,
+      attachments: inline.attachments.length ? inline.attachments : undefined,
     });
-    if (!res.ok) console.error('[email] send failed', res.status, await res.text().catch(() => ''));
-    return { ok: res.ok };
+    log.status = 'sent';
+    log.messageId = info?.messageId || '';
+    log.sentAt = new Date();
+    log.lastError = undefined;
+    if (['password-reset', 'verify-email'].includes(log.kind)) { log.html = undefined; log.text = undefined; }
+    await log.save();
+    return { ok: true, id: log._id };
   } catch (error) {
-    // Email problems must never break an order.
-    console.error('[email] send error', error.message);
-    return { ok: false };
+    // Email problems must never break an order or a form.
+    log.status = 'failed';
+    log.lastError = shortError(error);
+    await log.save().catch(() => {});
+    if (!config.isTest) console.error(`[email] failed to=${log.to} subject="${log.subject}": ${log.lastError}`);
+    if (/Invalid login|Username and Password not accepted|EAUTH|ECONNECTION|ETIMEDOUT|ESOCKET|ENETUNREACH/i.test(log.lastError)) transport = null;
+    return { ok: false, id: log._id, error: log.lastError };
+  }
+}
+
+/**
+ * Send one email through the outbox.
+ * key:   idempotency key; the same key never sends twice (a failed one may be retried).
+ * defer: just queue it; the cron (or the next retry) sends it. Used for bulk sends.
+ */
+async function send({ to, subject, html, text, replyTo, key, kind = '', headers, defer = false }) {
+  if (!to) return { skipped: true };
+  const doc = {
+    key: key || undefined,
+    kind,
+    to: String(to).trim(),
+    replyTo: replyTo || config.brand.supportEmail || undefined,
+    subject,
+    html,
+    text: text || htmlToText(html),
+    headers,
+    status: providerName() ? 'queued' : 'skipped',
+  };
+  let log;
+  try {
+    log = await EmailLog().create(doc);
+  } catch (error) {
+    if (error?.code === 11000 && key) {
+      const existing = await EmailLog().findOne({ key });
+      if (!existing || existing.status !== 'failed' || !providerName()) return { duplicate: true };
+      return deliver(existing);
+    }
+    // The database is down: still try to send, without a log row.
+    if (!providerName()) return { skipped: true };
+    try {
+      await (await getTransport()).sendMail({ from: fromAddress(), ...doc });
+      return { ok: true };
+    } catch (sendError) {
+      console.error('[email] send error', shortError(sendError));
+      return { ok: false };
+    }
+  }
+  if (!providerName()) {
+    if (!config.isTest) console.log(`[email] (not sent, no email provider set) to=${doc.to} subject="${subject}"`);
+    return { skipped: true, id: log._id };
+  }
+  if (defer) return { queued: true, id: log._id };
+  return deliver(log);
+}
+
+// Retries failed emails and sends queued ones. Called by the daily cron and from admin.
+async function processOutbox({ limit = 100, deadline = Date.now() + 45_000 } = {}) {
+  if (!providerName()) return { sent: 0, failed: 0, left: 0 };
+  const since = new Date(Date.now() - 48 * 60 * 60 * 1000);
+  const rows = await EmailLog().find({
+    createdAt: { $gte: since },
+    $or: [{ status: 'queued' }, { status: 'failed', attempts: { $lt: 3 } }],
+  }).sort({ createdAt: 1 }).limit(limit);
+  let sent = 0;
+  let failed = 0;
+  for (const row of rows) {
+    if (Date.now() > deadline) break;
+    const r = await deliver(row);
+    if (r.ok) sent += 1; else failed += 1;
+  }
+  return { sent, failed, left: rows.length - sent - failed };
+}
+
+async function retry(id) {
+  const row = await EmailLog().findById(id);
+  if (!row) return null;
+  if (row.status === 'sent') return { ok: true, already: true };
+  if (!providerName()) return { ok: false, error: 'No email provider is set up yet.' };
+  return deliver(row);
+}
+
+// Checks the login without sending anything (used by the admin test button).
+async function verify() {
+  if (!providerName()) return { ok: false, error: 'No email provider is set up yet.' };
+  const t = await getTransport();
+  if (typeof t.verify !== 'function') return { ok: true };
+  try {
+    await t.verify();
+    return { ok: true };
+  } catch (error) {
+    transport = null;
+    return { ok: false, error: shortError(error) };
   }
 }
 
@@ -253,6 +459,47 @@ const templates = {
       }),
     };
   },
+  // To the studio inbox. Reply-To is the customer, so pressing Reply in Gmail answers them.
+  enquiryForOwner(m) {
+    const row = (label, value) => (value ? `<tr><td style="padding:8px 14px 8px 0;border-top:1px solid rgba(34,29,25,.08);font-size:13px;color:${C.soft};white-space:nowrap;vertical-align:top">${label}</td><td style="padding:8px 0;border-top:1px solid rgba(34,29,25,.08);font-size:15px;color:${C.ink}">${value}</td></tr>` : '');
+    const mail = escapeHtml(m.email);
+    const tel = m.phone ? `<a href="tel:${escapeHtml(m.phone.replace(/[^\d+]/g, ''))}" style="color:${C.ink}">${escapeHtml(m.phone)}</a>` : '';
+    const when = new Date(m.createdAt || Date.now()).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
+    const replyHref = `mailto:${m.email}?subject=${encodeURIComponent(`Re: ${m.topic || 'your message'} · Artora by June`)}`;
+    return {
+      subject: `New enquiry · ${m.topic || 'General'} · ${m.name}`,
+      html: layout({
+        preheader: String(m.message || '').slice(0, 110),
+        title: `${m.name} wrote to the studio.`,
+        rawHtml: `<table role="presentation" style="width:100%;border-collapse:collapse;margin:0 0 16px">
+          ${row('Name', escapeHtml(m.name))}
+          ${row('Email', `<a href="mailto:${mail}" style="color:${C.ink}">${mail}</a>`)}
+          ${row('Phone', tel)}
+          ${row('About', escapeHtml(m.topic || 'General'))}
+          ${row('Sent', escapeHtml(`${when} IST`))}
+        </table>
+        <div style="border-left:3px solid ${C.cherry};padding:4px 0 4px 16px;margin:0 0 6px;font-size:15px;line-height:1.7;color:${C.ink};white-space:pre-wrap">${escapeHtml(m.message)}</div>
+        <p style="margin:16px 0 0;font-size:13px;color:${C.soft}">Just press Reply: your answer goes straight to ${mail}.</p>`,
+        cta: { href: replyHref, label: `Reply to ${String(m.name).split(' ')[0]}` },
+      }),
+    };
+  },
+  enquiryReceived(m) {
+    return {
+      subject: 'June has your note · Artora by June',
+      html: layout({
+        preheader: 'Thank you for writing. Here is a copy of your message.',
+        title: 'Your note is with June.',
+        lines: [
+          `Hi ${String(m.name).split(' ')[0] || 'there'}, thank you for writing to the studio.`,
+          `${m.replyTime || 'June usually replies within a day.'} If you need to add anything, just reply to this email.`,
+        ],
+        rawHtml: `<p style="margin:6px 0 8px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:${C.soft}">Your message · ${escapeHtml(m.topic || 'General')}</p>
+          <div style="border-left:3px solid #CDBFA4;padding:4px 0 4px 16px;font-size:15px;line-height:1.7;color:${C.ink};white-space:pre-wrap">${escapeHtml(m.message)}</div>`,
+        cta: { href: `${config.appUrl}/shop`, label: 'Browse the studio' },
+      }),
+    };
+  },
   adminAlert(subject, lines, href) {
     return {
       subject: `[Studio] ${subject}`,
@@ -261,11 +508,18 @@ const templates = {
   },
 };
 
-async function notifyAdmin(subject, lines, path = '/admin') {
-  const to = config.adminNotifyEmail || config.initialAdminEmails[0];
-  if (!to) return;
-  const t = templates.adminAlert(subject, lines, `${config.appUrl}${path}`);
-  await send({ to, ...t });
+function adminInbox() {
+  return config.adminNotifyEmail || config.email.gmailUser || config.initialAdminEmails[0] || '';
 }
 
-module.exports = { send, templates, notifyAdmin, orderLink, layout };
+async function notifyAdmin(subject, lines, path = '/admin', { key, replyTo } = {}) {
+  const to = adminInbox();
+  if (!to) return { skipped: true };
+  const t = templates.adminAlert(subject, lines, `${config.appUrl}${path}`);
+  return send({ to, ...t, key, replyTo, kind: 'admin' });
+}
+
+module.exports = {
+  send, templates, notifyAdmin, orderLink, layout, htmlToText, processOutbox, retry, verify, adminInbox, providerName,
+  _setTestTransport(t) { testTransport = t; transport = null; },
+};

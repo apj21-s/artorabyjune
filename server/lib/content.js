@@ -14,7 +14,7 @@ const DEFAULTS = {
     meetJuneBody: 'I paint every tote myself, in a small studio full of drying racks and half-finished skies. You send the memory; I send back a sketch, then paint it slowly until it feels like yours.',
     instagram: 'artorabyjune',
     whatsapp: '',
-    supportEmail: 'hello@artorabyjune.com',
+    supportEmail: '',
     replyTime: 'June usually replies within a day.',
     upiId: '',
     upiName: 'Artora by June',

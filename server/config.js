@@ -19,7 +19,7 @@ const config = {
   initialAdminEmails: list(env.INITIAL_ADMIN_EMAILS),
   brand: {
     name: 'Artora by June',
-    supportEmail: env.SUPPORT_EMAIL || 'hello@artorabyjune.com',
+    supportEmail: (env.SUPPORT_EMAIL || env.GMAIL_USER || env.ADMIN_NOTIFY_EMAIL || '').trim().toLowerCase(),
     instagram: env.INSTAGRAM_HANDLE || 'artorabyjune',
   },
   cloudinary: {
@@ -27,9 +27,23 @@ const config = {
     apiKey: env.CLOUDINARY_API_KEY || '',
     apiSecret: env.CLOUDINARY_API_SECRET || '',
   },
+  // Email. Pick one provider with env vars; no code change is needed to switch later.
+  //  - Gmail (default, free, no domain): GMAIL_USER + GMAIL_APP_PASSWORD
+  //  - Any SMTP host: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, EMAIL_FROM
+  //  - Resend (needs your own domain): RESEND_API_KEY + RESEND_FROM_EMAIL
+  email: {
+    fromName: env.EMAIL_FROM_NAME || 'Artora by June',
+    gmailUser: (env.GMAIL_USER || '').trim(),
+    gmailPass: (env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, ''),
+    smtpHost: env.SMTP_HOST || '',
+    smtpPort: Number(env.SMTP_PORT) || 465,
+    smtpUser: env.SMTP_USER || '',
+    smtpPass: env.SMTP_PASS || '',
+    from: env.EMAIL_FROM || '',
+  },
   resend: {
     apiKey: env.RESEND_API_KEY || '',
-    from: env.RESEND_FROM_EMAIL || 'Artora by June <orders@artorabyjune.com>',
+    from: env.RESEND_FROM_EMAIL || '',
   },
   adminNotifyEmail: env.ADMIN_NOTIFY_EMAIL || '',
   google: {
@@ -48,9 +62,18 @@ const config = {
 config.features = {
   razorpay: Boolean(config.razorpay.keyId && config.razorpay.keySecret),
   cloudinary: Boolean(config.cloudinary.cloudName && config.cloudinary.apiKey && config.cloudinary.apiSecret),
-  email: Boolean(config.resend.apiKey),
+  email: false, // set below
   google: Boolean(config.google.clientId && config.google.clientSecret),
 };
+
+config.emailProvider = (() => {
+  const e = config.email;
+  if (config.resend.apiKey && config.resend.from) return 'resend';
+  if (e.smtpHost && e.smtpUser && e.smtpPass) return 'smtp';
+  if (e.gmailUser && e.gmailPass) return 'gmail';
+  return '';
+})();
+config.features.email = Boolean(config.emailProvider);
 
 function validate() {
   const problems = [];

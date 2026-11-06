@@ -27,7 +27,7 @@ async function sendVerification(user) {
   user.verifyTokenExpires = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
   await user.save();
   const link = `${config.appUrl}/api/auth/verify-email?token=${encodeURIComponent(token)}&email=${encodeURIComponent(user.email)}`;
-  await mail.send({ to: user.email, ...mail.templates.verifyEmail(user, link) });
+  await mail.send({ to: user.email, ...mail.templates.verifyEmail(user, link), kind: 'verify-email' });
   return true;
 }
 
@@ -87,7 +87,7 @@ router.post('/forgot', limiters.auth, validate(z.object({ email: email() })), as
     user.resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000);
     await user.save();
     const link = `${config.appUrl}/reset-password?token=${encodeURIComponent(token)}&email=${encodeURIComponent(user.email)}`;
-    await mail.send({ to: user.email, ...mail.templates.passwordReset(user, link) });
+    await mail.send({ to: user.email, ...mail.templates.passwordReset(user, link), kind: 'password-reset' });
   }
   // Same answer either way so nobody can probe which emails have accounts.
   res.json({ ok: true, message: 'If that email has an account, a reset link is on its way.' });

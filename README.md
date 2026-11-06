@@ -7,7 +7,7 @@ Storefront, custom-commission studio and admin for **Artora by June**, a studio 
 - **Payments:** Razorpay (UPI, cards, netbanking). Without Razorpay keys, checkout falls back to manual UPI and June marks orders paid in the admin.
 - **Admin** at `/admin`: dashboard, orders and commissions, products, coupons, reviews, site copy, messages, subscribers, admin access.
 - **Shop extras:** search, saved totes (synced to the account), recently viewed, a photo lightbox, bundles, gift cards and store credit, and one abandoned-cart reminder (`server/services/reminders.js`).
-- **Emails** through Resend, **photo storage** through Cloudinary, optional Google sign-in and Plausible analytics.
+- **Emails** through Gmail (free, no domain; swappable to any SMTP host or Resend by env vars), with an outbox log, duplicate protection and daily retries, **photo storage** through Cloudinary, optional Google sign-in and Plausible analytics.
 
 The owner's guide (deploying, connecting services, daily use) is **[HANDOVER.md](HANDOVER.md)**.
 
@@ -50,7 +50,7 @@ npm run dev                   # http://localhost:3000, restarts on change
 npm test                      # API tests (downloads a MongoDB binary on first run)
 ```
 
-Without Razorpay, Resend or Cloudinary keys the site still works locally. Emails are logged to the console, payments use manual UPI, and uploads go to `./uploads`.
+Without Razorpay, email or Cloudinary keys the site still works locally. Emails are logged to the console, payments use manual UPI, and uploads go to `./uploads`.
 
 ## Deploying
 

@@ -43,19 +43,31 @@ You need four free accounts. Keep each password somewhere safe.
    - `APP_URL`: your site address with `https://`. Use the Render address (e.g. `https://artora-by-june.onrender.com`) until you have a domain.
    - `MONGODB_URI`: from step a.
    - `INITIAL_ADMIN_EMAILS`: June's email. Signing up with this email makes the account an admin.
-   - `SUPPORT_EMAIL`: the email customers should reply to.
    - Leave the rest blank for now. `JWT_SECRET` is generated for you.
 4. Click **Apply**. After a few minutes the site is live.
 5. Open `APP_URL/login` → **Create account** with June's email. You're now an admin. Go to `/admin`.
 
 > The **Starter** plan (about US$7/month) keeps the site awake. The free plan works but takes ~30 seconds to wake up after being idle, which isn't good for a shop.
 
-### c. Order emails: Resend (free up to 3,000 emails/month)
-1. Sign up at **resend.com** → **Domains** → add your domain and add the DNS records it shows (your domain provider has a DNS page).
-2. **API Keys** → create one → paste into Render as `RESEND_API_KEY`.
-3. Set `RESEND_FROM_EMAIL` to e.g. `Artora by June <orders@yourdomain.com>`.
+### c. Emails: Gmail (free, no domain needed)
+The site sends every email (enquiries, order and payment confirmations, stage updates, password resets, gift cards) from a Gmail account. Customers' replies land in that same inbox.
+1. Sign in to the Gmail account the studio will use. Go to **myaccount.google.com/security** and turn on **2-Step Verification**.
+2. Open **myaccount.google.com/apppasswords**, type a name such as `Artora website`, press **Create**, and copy the 16-letter password. (This password only lets the site send mail; your normal password stays private. Delete it there any time to cut access.)
+3. In Vercel → Project → **Settings → Environment Variables**, add for Production:
+   - `GMAIL_USER`: the Gmail address
+   - `GMAIL_APP_PASSWORD`: the 16 letters
+   - `ADMIN_NOTIFY_EMAIL`: where enquiries and order alerts should arrive (can be the same Gmail)
+   - `SUPPORT_EMAIL`: the address shown on the contact page (usually the same Gmail)
+4. Redeploy, then open Admin → **Messages** → **Send test email**.
 
-Until this is connected, the site works but **no emails are sent**.
+Until this is connected, the site works and saves every enquiry in Admin → Messages, but **no emails are sent**.
+
+**Good to know**
+- Gmail allows about 500 emails a day, which is plenty for a small studio. Restock alerts beyond what fits are sent the next day.
+- The first emails may land in Spam for some customers. Ask early customers to mark them "Not spam"; it improves quickly.
+- Admin → Messages shows an **Email log**. Anything that failed is retried automatically once a day, or press **Retry**.
+- Newsletters: the site collects newsletter sign-ups (Admin → Subscribers → CSV), but Gmail must not be used for bulk marketing. Import the CSV into a free newsletter tool (e.g. Brevo) if you want to send one.
+- Later, with your own domain: set `RESEND_API_KEY` + `RESEND_FROM_EMAIL` (or `SMTP_*`) and the site switches over with no code change.
 
 ### d. Photo storage: Cloudinary (free tier)
 Needed for customer reference photos, your sketches, and product photos.
@@ -130,7 +142,7 @@ The **Before launch** card on the Admin overview tracks this list:
 | Render Starter | ~US$7/month |
 | MongoDB Atlas M0 | Free |
 | Cloudinary | Free tier covers a small shop |
-| Resend | Free up to 3,000 emails/month |
+| Gmail (emails) | Free, about 500 emails/day |
 | Razorpay | ~2% per payment, no monthly fee |
 | Domain | ~₹800–1,500/year |
 
@@ -139,7 +151,7 @@ The **Before launch** card on the Admin overview tracks this list:
 ## 6. If something goes wrong
 
 - **Site won't start:** Render → your service → **Logs**. The first lines say exactly which setting is missing (e.g. "JWT_SECRET must be…").
-- **No emails arriving:** check `RESEND_API_KEY` and that your domain shows **Verified** in Resend. Check the customer's spam folder.
+- **No emails arriving:** Admin → Messages → **Send test email**. "Login failed" means the App Password is wrong or was deleted: create a new one and update `GMAIL_APP_PASSWORD`. Otherwise check the Email log and the customer's spam folder.
 - **Photo upload says it isn't set up:** add the three Cloudinary settings.
 - **Payment taken but order still "unpaid":** the webhook will usually catch up within a minute. If not, check the payment in the Razorpay dashboard and use **Record UPI/cash payment** on the order.
 - **Forgot admin password:** use "Forgot your password?" on the login page (needs emails connected). A developer can also run `npm run create-admin -- email "new-password"`.

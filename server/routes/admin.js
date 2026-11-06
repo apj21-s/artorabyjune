@@ -1,6 +1,6 @@
 const express = require('express');
 const config = require('../config');
-const { Order, Product, Coupon, Review, Message, Subscriber, User, Content, GiftCard } = require('../models');
+const { Order, Product, Coupon, Review, Message, Subscriber, User, Content, GiftCard, EmailLog } = require('../models');
 const { giftCardCode } = require('../lib/orders');
 const { requireAdmin } = require('../middleware/auth');
 const { validate, z, str, url, email } = require('../middleware/validate');
@@ -51,7 +51,7 @@ router.get('/stats', async (_req, res) => {
     recent: recent.map((o) => ({ ...o, statusLabel: STAGES[o.status]?.label || o.status })),
     checklist: [
       { key: 'payments', label: 'Online payments (Razorpay) connected', done: config.features.razorpay, hint: 'Until then customers pay your UPI ID and you confirm it here. Set up: handover guide, Step 10.' },
-      { key: 'email', label: 'Order emails (Resend) connected', done: config.features.email, hint: 'Until then no emails go out. Set up: handover guide, Step 9 (needs your own domain).' },
+      { key: 'email', label: `Emails connected${config.emailProvider ? ` (${config.emailProvider === 'gmail' ? 'Gmail' : config.emailProvider})` : ''}`, done: config.features.email, hint: 'Until then no emails go out (enquiries are still saved in Messages). Set up: handover guide, "Emails: Gmail" — free, no domain needed.' },
       { key: 'uploads', label: 'Photo storage (Cloudinary) connected', done: config.features.cloudinary, hint: 'Needed to upload product photos and sketches. Set up: handover guide, Step 6.' },
       { key: 'pricingReviewed', label: 'Commission prices and turnaround reviewed', done: Boolean(launch.pricingReviewed), manual: true },
       { key: 'reviewsReal', label: 'Sample reviews replaced with real ones', done: Boolean(launch.reviewsReal), manual: true },
@@ -167,7 +167,7 @@ router.post('/orders/:id/quote', validate(z.object({
   order.status = 'quoted';
   pushHistory(order, 'quoted');
   await order.save();
-  if (req.body.notify) await mail.send({ to: order.email, ...mail.templates.quoteReady(order) });
+  if (req.body.notify) await mail.send({ to: order.email, ...mail.templates.quoteReady(order), key: `quote:${order._id}:${order.history.length}`, kind: 'quote' });
   res.json({ ok: true, total: order.total, depositAmount: order.depositAmount });
 });
 
@@ -247,9 +247,9 @@ router.post('/orders/manual', validate(z.object({
     const amount = b.paidAmount || (b.paid === 'full' ? order.total : order.depositAmount || Math.ceil(order.total / 2));
     await markPaymentPaid(order, { kind: b.paid === 'full' ? 'full' : 'deposit', amount, method: 'manual', note: b.paymentNote || `Paid on ${from}` });
   } else if (b.notify) {
-    if (order.type === 'shop') await mail.send({ to: order.email, ...mail.templates.shopOrderPlaced(order) });
-    else if (order.status === 'quoted') await mail.send({ to: order.email, ...mail.templates.quoteReady(order) });
-    else await mail.send({ to: order.email, ...mail.templates.commissionReceived(order) });
+    if (order.type === 'shop') await mail.send({ to: order.email, ...mail.templates.shopOrderPlaced(order), key: `order-placed:${order._id}`, kind: 'order' });
+    else if (order.status === 'quoted') await mail.send({ to: order.email, ...mail.templates.quoteReady(order), key: `quote:${order._id}:${order.history.length}`, kind: 'quote' });
+    else await mail.send({ to: order.email, ...mail.templates.commissionReceived(order), key: `commission-received:${order._id}`, kind: 'commission' });
   }
   res.status(201).json({ id: order._id, number: order.number });
 });
@@ -315,8 +315,10 @@ router.put('/products/:id', validate(productSchema), async (req, res) => {
   await product.save();
   if (wasOut && product.stock > 0 && product.status === 'live') {
     const waiting = await Subscriber.find({ kind: 'restock', productId: product._id, notifiedAt: { $exists: false } });
+    // Send while there's time in this request; the rest are queued and go out with the daily cron.
+    const deadline = Date.now() + 15_000;
     for (const sub of waiting) {
-      await mail.send({ to: sub.email, ...mail.templates.restock(sub.email, product) });
+      await mail.send({ to: sub.email, ...mail.templates.restock(sub.email, product), key: `restock:${sub._id}`, kind: 'restock', defer: Date.now() > deadline });
       sub.notifiedAt = new Date();
       await sub.save();
     }
@@ -427,6 +429,30 @@ router.get('/messages', async (_req, res) => res.json({ items: await Message.fin
 router.patch('/messages/:id', validate(z.object({ handled: z.boolean() })), async (req, res) => {
   await Message.updateOne({ _id: req.params.id }, { handled: req.body.handled });
   res.json({ ok: true });
+});
+
+// ---------- Email log ----------
+router.get('/emails', async (_req, res) => {
+  const items = await EmailLog.find().sort({ createdAt: -1 }).limit(100)
+    .select('kind to subject status attempts lastError createdAt sentAt').lean();
+  res.json({ items, provider: config.emailProvider, inbox: mail.adminInbox(), sender: config.email.gmailUser || config.email.smtpUser || '' });
+});
+
+router.post('/emails/:id/retry', async (req, res) => {
+  const r = await mail.retry(req.params.id);
+  if (!r) return res.status(404).json({ error: 'Not found.' });
+  if (!r.ok) return res.status(502).json({ error: r.error || 'Still not sending. Check the email settings.' });
+  res.json({ ok: true });
+});
+
+// Checks the Gmail login, then sends a sample to the studio inbox.
+router.post('/emails/test', async (req, res) => {
+  const check = await mail.verify();
+  if (!check.ok) return res.status(502).json({ error: `Email login failed: ${check.error}` });
+  const to = mail.adminInbox();
+  const r = await mail.send({ to, kind: 'test', ...mail.templates.adminAlert('Test email', ['If you can read this, the site can send email.', `Sent from ${config.appUrl} on ${new Date().toUTCString()}.`], `${config.appUrl}/admin`) });
+  if (!r.ok) return res.status(502).json({ error: r.error || 'Send failed.' });
+  res.json({ ok: true, to });
 });
 
 router.get('/subscribers', async (_req, res) => res.json({ items: await Subscriber.find().sort({ createdAt: -1 }).limit(1000).lean() }));
