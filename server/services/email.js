@@ -80,7 +80,7 @@ function fromAddress() {
   return `"${name}" <${e.gmailUser || 'studio@example.com'}>`;
 }
 
-function getTransport() {
+async function getTransport() {
   if (testTransport) return testTransport;
   if (transport) return transport;
   const e = config.email;
@@ -100,11 +100,18 @@ function getTransport() {
     return transport;
   }
   const nodemailer = require('nodemailer');
-  const auth = config.emailProvider === 'smtp' ? { user: e.smtpUser, pass: e.smtpPass } : { user: e.gmailUser, pass: e.gmailPass };
+  const smtp = config.emailProvider === 'smtp';
+  const host = smtp ? e.smtpHost : 'smtp.gmail.com';
+  const auth = smtp ? { user: e.smtpUser, pass: e.smtpPass } : { user: e.gmailUser, pass: e.gmailPass };
+  // Connect over IPv4: some hosts have no IPv6 route, and nodemailer may pick IPv6 first.
+  const ip = await new Promise((resolve) => {
+    require('dns').lookup(host, { family: 4 }, (err, address) => resolve(err ? host : address));
+  });
   transport = nodemailer.createTransport({
-    host: config.emailProvider === 'smtp' ? e.smtpHost : 'smtp.gmail.com',
-    port: config.emailProvider === 'smtp' ? e.smtpPort : 465,
-    secure: config.emailProvider === 'smtp' ? e.smtpPort === 465 : true,
+    host: ip,
+    port: smtp ? e.smtpPort : 465,
+    secure: smtp ? e.smtpPort === 465 : true,
+    tls: { servername: host },
     auth,
     pool: true,
     maxConnections: 2,
@@ -150,7 +157,7 @@ async function deliver(log) {
   log.provider = providerName();
   await log.save();
   try {
-    const info = await getTransport().sendMail({
+    const info = await (await getTransport()).sendMail({
       from: fromAddress(),
       to: log.to,
       replyTo: log.replyTo || undefined,
@@ -172,7 +179,7 @@ async function deliver(log) {
     log.lastError = shortError(error);
     await log.save().catch(() => {});
     if (!config.isTest) console.error(`[email] failed to=${log.to} subject="${log.subject}": ${log.lastError}`);
-    if (/Invalid login|Username and Password not accepted|EAUTH/i.test(log.lastError)) transport = null;
+    if (/Invalid login|Username and Password not accepted|EAUTH|ECONNECTION|ETIMEDOUT|ESOCKET|ENETUNREACH/i.test(log.lastError)) transport = null;
     return { ok: false, id: log._id, error: log.lastError };
   }
 }
@@ -207,7 +214,7 @@ async function send({ to, subject, html, text, replyTo, key, kind = '', headers,
     // The database is down: still try to send, without a log row.
     if (!providerName()) return { skipped: true };
     try {
-      await getTransport().sendMail({ from: fromAddress(), ...doc });
+      await (await getTransport()).sendMail({ from: fromAddress(), ...doc });
       return { ok: true };
     } catch (sendError) {
       console.error('[email] send error', shortError(sendError));
@@ -251,7 +258,7 @@ async function retry(id) {
 // Checks the login without sending anything (used by the admin test button).
 async function verify() {
   if (!providerName()) return { ok: false, error: 'No email provider is set up yet.' };
-  const t = getTransport();
+  const t = await getTransport();
   if (typeof t.verify !== 'function') return { ok: true };
   try {
     await t.verify();
