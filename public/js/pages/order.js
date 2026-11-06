@@ -81,6 +81,7 @@ function render(o) {
       </div>
       ${welcome ? raw('<img class="order-welcome-art" src="/assets/june-character.svg" alt="" width="304" height="218">') : ''}
     </div>
+    ${welcome ? raw(html`<p class="mail-hint">A confirmation is on its way to <strong>${o.email || 'your email'}</strong>. Don’t see it in a few minutes? Check your spam or promotions folder and mark it “Not spam”, so updates about your tote reach your inbox.</p>`) : ''}
     <div class="order-grid">
       ${raw(quoteSection(o))}
       ${o.canPayBalance ? raw(html`
