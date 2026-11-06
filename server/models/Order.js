@@ -30,6 +30,9 @@ const HistorySchema = new mongoose.Schema({
 const OrderSchema = new mongoose.Schema({
   number: { type: String, unique: true, index: true },
   type: { type: String, enum: ['shop', 'commission'], required: true, index: true },
+  // Where the order came from: the website, or entered by June from a DM / chat / in person.
+  source: { type: String, enum: ['website', 'instagram', 'whatsapp', 'in_person', 'phone', 'other'], default: 'website' },
+  sourceHandle: String,
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
   accessToken: { type: String, index: true }, // secret for guest links (track, approve, pay)
 
