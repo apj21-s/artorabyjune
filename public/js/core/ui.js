@@ -73,7 +73,14 @@ export function wireSheets() {
 }
 
 // ---------- Modal ----------
+// Storefront pages don't ship the modal markup; add it the first time a modal is needed.
+function ensureModalMarkup() {
+  if ($('[data-modal]')) return;
+  document.body.insertAdjacentHTML('beforeend', '<div class="modal-backdrop" data-modal hidden><div class="modal paper" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1"><div class="modal-head"><h2 id="modalTitle" data-modal-title></h2><button class="icon-btn" type="button" data-modal-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="modal-body" data-modal-body></div></div></div>');
+}
+
 export function openModal({ title, body, onOpen, wide = false }) {
+  ensureModalMarkup();
   const backdrop = $('[data-modal]');
   const modal = $('.modal', backdrop);
   $('[data-modal-title]', backdrop).textContent = title;

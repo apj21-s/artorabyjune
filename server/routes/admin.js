@@ -5,8 +5,8 @@ const { giftCardCode } = require('../lib/orders');
 const { requireAdmin } = require('../middleware/auth');
 const { validate, z, str, url, email } = require('../middleware/validate');
 const { getContent, setContent, EDITABLE_KEYS, DEFAULTS } = require('../lib/content');
-const { priceCommission } = require('../lib/pricing');
-const { setStatus, markPaymentPaid, customerView, pushHistory } = require('../lib/orders');
+const { priceCommission, priceCart, PricingError } = require('../lib/pricing');
+const { setStatus, markPaymentPaid, customerView, pushHistory, newOrder } = require('../lib/orders');
 const { STAGES, flowFor } = require('../lib/stages');
 const { slugify, escapeRegex } = require('../lib/util');
 const mail = require('../services/email');
@@ -24,7 +24,7 @@ router.param('id', (req, res, next, id) => {
 // ---------- Overview ----------
 router.get('/stats', async (_req, res) => {
   const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const [revenue30, revenueAll, openCommissions, awaitingQuote, toShip, lowStock, unreadMessages, pendingReviews, recent] = await Promise.all([
+  const [revenue30, revenueAll, openCommissions, awaitingQuote, toShip, lowStock, unreadMessages, pendingReviews, recent, awaitingPayment] = await Promise.all([
     Order.aggregate([{ $match: { createdAt: { $gte: since30 } } }, { $group: { _id: null, sum: { $sum: '$amountPaid' } } }]),
     Order.aggregate([{ $group: { _id: null, sum: { $sum: '$amountPaid' }, count: { $sum: 1 } } }]),
     Order.countDocuments({ type: 'commission', status: { $nin: ['delivered', 'cancelled'] } }),
@@ -34,6 +34,7 @@ router.get('/stats', async (_req, res) => {
     Message.countDocuments({ handled: false }),
     Review.countDocuments({ approved: false }),
     Order.find().sort({ createdAt: -1 }).limit(6).select('number type name status total amountPaid createdAt paymentStatus').lean(),
+    Order.countDocuments({ type: 'shop', status: 'received', paymentStatus: 'unpaid' }),
   ]);
   const launch = await getContent('launch');
   res.json({
@@ -46,11 +47,12 @@ router.get('/stats', async (_req, res) => {
     lowStock,
     unreadMessages,
     pendingReviews,
+    awaitingPayment,
     recent: recent.map((o) => ({ ...o, statusLabel: STAGES[o.status]?.label || o.status })),
     checklist: [
-      { key: 'payments', label: 'Online payments (Razorpay) connected', done: config.features.razorpay, hint: 'Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in hosting settings.' },
-      { key: 'email', label: `Emails connected${config.emailProvider ? ` (${config.emailProvider === 'gmail' ? 'Gmail' : config.emailProvider})` : ''}`, done: config.features.email, hint: 'Add GMAIL_USER and GMAIL_APP_PASSWORD in hosting settings (see HANDOVER.md).' },
-      { key: 'uploads', label: 'Photo storage (Cloudinary) connected', done: config.features.cloudinary, hint: 'Add the three CLOUDINARY_* values.' },
+      { key: 'payments', label: 'Online payments (Razorpay) connected', done: config.features.razorpay, hint: 'Until then customers pay your UPI ID and you confirm it here. Set up: handover guide, Step 10.' },
+      { key: 'email', label: `Emails connected${config.emailProvider ? ` (${config.emailProvider === 'gmail' ? 'Gmail' : config.emailProvider})` : ''}`, done: config.features.email, hint: 'Until then no emails go out (enquiries are still saved in Messages). Set up: handover guide, "Emails: Gmail" — free, no domain needed.' },
+      { key: 'uploads', label: 'Photo storage (Cloudinary) connected', done: config.features.cloudinary, hint: 'Needed to upload product photos and sketches. Set up: handover guide, Step 6.' },
       { key: 'pricingReviewed', label: 'Commission prices and turnaround reviewed', done: Boolean(launch.pricingReviewed), manual: true },
       { key: 'reviewsReal', label: 'Sample reviews replaced with real ones', done: Boolean(launch.reviewsReal), manual: true },
       { key: 'legalReviewed', label: 'Privacy, terms and returns pages reviewed', done: Boolean(launch.legalReviewed), manual: true },
@@ -113,6 +115,8 @@ router.get('/orders/:id', async (req, res) => {
       token: order.accessToken,
       payments: order.payments,
       internalNotes: order.internalNotes || '',
+      source: order.source || 'website',
+      sourceHandle: order.sourceHandle || '',
       history: order.history,
     },
     flow: flowFor(order.type).map((key) => ({ key, label: STAGES[key].label })),
@@ -176,6 +180,78 @@ router.post('/orders/:id/payments', validate(z.object({
   if (!order) return res.status(404).json({ error: 'Order not found.' });
   await markPaymentPaid(order, { kind: req.body.kind, amount: req.body.amount, method: 'manual', note: req.body.note });
   res.json({ ok: true });
+});
+
+// ---------- Orders taken outside the website (Instagram DM, WhatsApp, in person) ----------
+// June types them in; they behave exactly like website orders, and show up in the customer's
+// account automatically because accounts match orders by email.
+const SOURCE_LABEL = { instagram: 'Instagram', whatsapp: 'WhatsApp', in_person: 'in person', phone: 'a phone call', other: 'a message' };
+const optStr = (n) => str(n).optional().default('');
+router.post('/orders/manual', validate(z.object({
+  type: z.enum(['shop', 'commission']),
+  source: z.enum(['instagram', 'whatsapp', 'in_person', 'phone', 'other']).default('instagram'),
+  handle: optStr(80),
+  name: str(80).min(1, 'Add the customer’s name.'),
+  email: email(),
+  phone: optStr(20),
+  items: z.array(z.object({ productId: objectId, qty: z.coerce.number().int().min(1).max(20) })).max(20).optional().default([]),
+  tier: optStr(40),
+  story: optStr(4000),
+  price: z.coerce.number().int().min(0).max(1_000_000).optional().default(0),
+  discount: z.coerce.number().int().min(0).max(1_000_000).optional().default(0),
+  address: z.object({ name: optStr(80), phone: optStr(20), line1: optStr(200), line2: optStr(200), city: optStr(80), state: optStr(80), pincode: optStr(10) }).optional().default({}),
+  paid: z.enum(['none', 'deposit', 'full']).default('none'),
+  paidAmount: z.coerce.number().int().min(0).max(1_000_000).optional().default(0),
+  paymentNote: optStr(300),
+  notes: optStr(2000),
+  notify: z.boolean().optional().default(true),
+})), async (req, res) => {
+  const b = req.body;
+  const from = SOURCE_LABEL[b.source] + (b.handle ? ` (${b.handle})` : '');
+  const user = await User.findOne({ email: b.email }).select('_id');
+  const address = b.address.line1 ? { ...b.address, name: b.address.name || b.name, phone: b.address.phone || b.phone } : undefined;
+  const base = { source: b.source, sourceHandle: b.handle, userId: user?._id, name: b.name, email: b.email, phone: b.phone, shippingAddress: address, internalNotes: b.notes };
+  let order;
+
+  if (b.type === 'shop') {
+    if (!b.items.length) return res.status(400).json({ error: 'Pick at least one tote.' });
+    let priced;
+    try { priced = await priceCart({ items: b.items }); } catch (error) {
+      if (error instanceof PricingError) return res.status(400).json({ error: error.message });
+      throw error;
+    }
+    if (priced.problems.length) return res.status(409).json({ error: priced.problems[0].message });
+    const discount = Math.min(b.discount, priced.total);
+    order = await newOrder({ ...base, type: 'shop', items: priced.lines, subtotal: priced.subtotal, discount: priced.discount + discount,
+      bundleDiscount: priced.bundleDiscount, shippingFee: priced.shippingFee, total: priced.total - discount });
+  } else {
+    if (b.story.trim().length < 3) return res.status(400).json({ error: 'Write a line about what to paint.' });
+    const tiers = await getContent('tiers');
+    const tier = tiers.find((t) => t.key === b.tier) || null;
+    order = await newOrder({ ...base, type: 'commission', subtotal: tier?.price || 0, total: 0,
+      commission: { tier: tier?.key || '', tierTitle: tier?.title || 'Custom', style: 'Tote', baseColour: 'Natural', story: b.story } });
+    if (b.price > 0) {
+      const priced = await priceCommission({ quote: b.price });
+      Object.assign(order, { subtotal: priced.subtotal, total: priced.total, depositAmount: priced.depositAmount });
+      order.commission.quotedAt = new Date();
+      order.commission.approvedAt = new Date(); // agreed in the chat
+      order.status = 'quoted';
+      pushHistory(order, 'quoted', `Price agreed on ${from}.`);
+    }
+  }
+  order.history[0].note = `Order taken on ${from}.`;
+  await order.save();
+
+  if (b.paid !== 'none') {
+    if (!order.total) return res.status(400).json({ error: 'Add a price before recording a payment.' });
+    const amount = b.paidAmount || (b.paid === 'full' ? order.total : order.depositAmount || Math.ceil(order.total / 2));
+    await markPaymentPaid(order, { kind: b.paid === 'full' ? 'full' : 'deposit', amount, method: 'manual', note: b.paymentNote || `Paid on ${from}` });
+  } else if (b.notify) {
+    if (order.type === 'shop') await mail.send({ to: order.email, ...mail.templates.shopOrderPlaced(order), key: `order-placed:${order._id}`, kind: 'order' });
+    else if (order.status === 'quoted') await mail.send({ to: order.email, ...mail.templates.quoteReady(order), key: `quote:${order._id}:${order.history.length}`, kind: 'quote' });
+    else await mail.send({ to: order.email, ...mail.templates.commissionReceived(order), key: `commission-received:${order._id}`, kind: 'commission' });
+  }
+  res.status(201).json({ id: order._id, number: order.number });
 });
 
 // ---------- Products ----------

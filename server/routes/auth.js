@@ -13,8 +13,22 @@ const router = express.Router();
 const password = () => z.string().min(8, 'Passwords need at least 8 characters.').max(200);
 
 // Guest orders placed with this email become visible in the new account.
+// Orders placed with an email join that account only once the person has proved they own the email,
+// so nobody can sign up with someone else's address and read their orders.
 async function claimGuestOrders(user) {
+  if (!user.emailVerified) return;
   await Order.updateMany({ email: user.email, userId: { $exists: false } }, { $set: { userId: user._id } });
+}
+
+async function sendVerification(user) {
+  if (!config.features.email) return false;
+  const token = randomToken(24);
+  user.verifyTokenHash = sha256(token);
+  user.verifyTokenExpires = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+  await user.save();
+  const link = `${config.appUrl}/api/auth/verify-email?token=${encodeURIComponent(token)}&email=${encodeURIComponent(user.email)}`;
+  await mail.send({ to: user.email, ...mail.templates.verifyEmail(user, link), kind: 'verify-email' });
+  return true;
 }
 
 router.post('/register', limiters.auth, validate(z.object({
@@ -34,7 +48,7 @@ router.post('/register', limiters.auth, validate(z.object({
     lastLoginAt: new Date(),
   });
   await syncRole(user);
-  await claimGuestOrders(user);
+  await sendVerification(user);
   startSession(res, user);
   res.status(201).json({ user: user.toPublic() });
 });
@@ -79,6 +93,27 @@ router.post('/forgot', limiters.auth, validate(z.object({ email: email() })), as
   res.json({ ok: true, message: 'If that email has an account, a reset link is on its way.' });
 });
 
+router.get('/verify-email', limiters.auth, async (req, res) => {
+  const user = await User.findOne({ email: String(req.query.email || '').toLowerCase() });
+  const token = String(req.query.token || '');
+  const valid = user?.verifyTokenHash && user.verifyTokenExpires > new Date() && token && safeEqual(user.verifyTokenHash, sha256(token));
+  if (!valid) return res.redirect('/account?verified=expired');
+  user.emailVerified = true;
+  user.verifyTokenHash = undefined;
+  user.verifyTokenExpires = undefined;
+  await user.save();
+  await claimGuestOrders(user);
+  startSession(res, user);
+  res.redirect('/account?verified=1');
+});
+
+router.post('/verify-email/resend', limiters.auth, async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'Please sign in to continue.' });
+  if (req.user.emailVerified) return res.json({ ok: true, already: true });
+  const sent = await sendVerification(req.user);
+  res.json({ ok: true, sent });
+});
+
 router.post('/reset', limiters.auth, validate(z.object({
   email: email(),
   token: z.string().min(10).max(200),
@@ -90,6 +125,7 @@ router.post('/reset', limiters.auth, validate(z.object({
     && safeEqual(user.resetTokenHash, sha256(req.body.token));
   if (!valid) return res.status(400).json({ error: 'That reset link has expired. Please request a new one.' });
   user.passwordHash = await bcrypt.hash(req.body.password, 12);
+  user.emailVerified = true; // the reset link proved they own the inbox
   user.resetTokenHash = undefined;
   user.resetTokenExpires = undefined;
   await user.save();
@@ -155,7 +191,10 @@ router.get('/google/callback', async (req, res) => {
     });
   } else if (!user.googleId) {
     user.googleId = profile.sub;
+    // A password set before the email was ever proven could belong to someone else; drop it.
+    if (!user.emailVerified) user.passwordHash = undefined;
   }
+  user.emailVerified = true;
   user.lastLoginAt = new Date();
   await user.save();
   await syncRole(user);

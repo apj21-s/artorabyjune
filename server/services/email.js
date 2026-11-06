@@ -163,7 +163,7 @@ async function deliver(log) {
     log.messageId = info?.messageId || '';
     log.sentAt = new Date();
     log.lastError = undefined;
-    if (log.kind === 'password-reset') { log.html = undefined; log.text = undefined; }
+    if (['password-reset', 'verify-email'].includes(log.kind)) { log.html = undefined; log.text = undefined; }
     await log.save();
     return { ok: true, id: log._id };
   } catch (error) {
@@ -356,6 +356,16 @@ const templates = {
           'If you have a moment, June would love to hear what you think. A photo of it out in the world would make her week.',
         ],
         cta: { href: `${orderLink(order)}#review`, label: 'Leave a few words' },
+      }),
+    };
+  },
+  verifyEmail(user, link) {
+    return {
+      subject: 'Confirm your email for Artora by June',
+      html: layout({
+        title: 'Confirm your email',
+        lines: ['Tap the button to confirm this is your email. Any orders placed with it will then appear in your account.', 'If you didn’t create an account, ignore this email.'],
+        cta: { href: link, label: 'Confirm my email' },
       }),
     };
   },

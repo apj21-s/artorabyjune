@@ -33,6 +33,11 @@ const UserSchema = new mongoose.Schema({
   addresses: { type: [AddressSchema], default: [] },
   memories: { type: [MemorySchema], default: [] },
   savedProducts: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }], default: [] },
+  // True once the person proved they own the email (emailed link, Google, or a password reset).
+  // Orders matched only by email are shown to verified accounts only.
+  emailVerified: { type: Boolean, default: false },
+  verifyTokenHash: String,
+  verifyTokenExpires: Date,
   resetTokenHash: String,
   resetTokenExpires: Date,
   lastLoginAt: Date,
@@ -44,6 +49,7 @@ UserSchema.methods.toPublic = function toPublic() {
     name: this.name,
     email: this.email,
     role: this.role,
+    emailVerified: Boolean(this.emailVerified),
     phone: this.phone || '',
     profile: this.profile || {},
   };

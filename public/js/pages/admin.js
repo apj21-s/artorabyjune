@@ -213,6 +213,19 @@ const statusPill = (s) => html`<span class="pill pill-${s}">${STATUS_LABEL[s] ||
 const payPill = (s) => html`<span class="pill pay-${s}">${PAY_LABEL[s] || s}</span>`;
 
 // ---------------- Overview ----------------
+// Plain-language "what needs you today" list, so the next job is always obvious.
+function todoPanel(s) {
+  const n = (count, one, many) => `${count} ${count === 1 ? one : many}`;
+  const jobs = [
+    s.awaitingQuote && { text: `${n(s.awaitingQuote, 'commission needs', 'commissions need')} your price and sketch`, how: 'Open it, type the price, add a photo of your sketch, press Send quote.', href: '#orders?status=received&type=commission', cta: 'Price them' },
+    s.awaitingPayment && { text: `${n(s.awaitingPayment, 'shop order is', 'shop orders are')} waiting for payment`, how: 'If the money reached your UPI, open the order and press Record UPI/cash payment.', href: '#orders?status=received&type=shop', cta: 'Check payments' },
+    s.toShip && { text: `${n(s.toShip, 'paid order is', 'paid orders are')} ready to paint, pack or ship`, how: 'Move each one to the next stage. When it leaves, add the courier and tracking number.', href: '#orders?open=1', cta: 'Open orders' },
+    s.pendingReviews && { text: `${n(s.pendingReviews, 'review is', 'reviews are')} waiting for your OK`, how: 'Approve the ones you’d like shown on the website.', href: '#reviews', cta: 'See reviews' },
+    s.unreadMessages && { text: `${n(s.unreadMessages, 'message', 'messages')} from the contact form`, how: 'Reply by email or phone, then mark it as handled.', href: '#messages', cta: 'Read messages' },
+  ].filter(Boolean);
+  return html`<section class="paper pad todo-panel"><h2>What needs you today</h2>${jobs.length ? raw(html`<ol class="todo-list">${jobs.map((j) => raw(html`<li><div><strong>${j.text}</strong><small>${j.how}</small></div><a class="btn btn-ghost btn-sm" href="${j.href}">${j.cta} →</a></li>`))}</ol>`) : raw('<p class="helper-note">Nothing waiting on you right now. New orders, reviews and messages will show up here.</p>')}</section>`;
+}
+
 async function viewOverview() {
   const s = await get('/admin/stats');
   setBadge('orders', s.awaitingQuote);
@@ -220,7 +233,8 @@ async function viewOverview() {
   setBadge('messages', s.unreadMessages);
   const pending = s.checklist.filter((c) => !c.done).length;
   main.innerHTML = html`
-    ${raw(head(`Good ${new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, ${(me.name || 'June').split(' ')[0]}.`, 'Here’s the studio at a glance.'))}
+    ${raw(head(`Good ${new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, ${(me.name || 'June').split(' ')[0]}.`, 'Here’s the studio at a glance.', '<button class="btn btn-primary btn-sm" type="button" data-new-order>+ Add an order from Instagram or WhatsApp</button>'))}
+    ${raw(todoPanel(s))}
     <div class="stat-grid">
       <a class="stat" href="#orders?status=received&type=commission"><span>Waiting for your quote</span><strong>${s.awaitingQuote}</strong><em>commissions</em></a>
       <a class="stat" href="#orders?open=1"><span>Open commissions</span><strong>${s.openCommissions}</strong><em>in progress</em></a>
@@ -257,7 +271,7 @@ async function viewOverview() {
 async function viewOrders(query) {
   const q = new URLSearchParams(query);
   main.innerHTML = html`
-    ${raw(head('Orders & commissions', 'Every story, from first note to doorstep.', '<a class="btn btn-ghost btn-sm" href="/api/admin/orders.csv">Export CSV</a>'))}
+    ${raw(head('Orders & commissions', 'Every story, from first note to doorstep.', '<button class="btn btn-primary btn-sm" type="button" data-new-order>+ New order</button><a class="btn btn-ghost btn-sm" href="/api/admin/orders.csv">Download as spreadsheet</a>'))}
     <div class="admin-toolbar">
       <input type="search" placeholder="Search number, name, email, phone" data-q value="${q.get('q') || ''}" aria-label="Search orders">
       <select data-type aria-label="Type"><option value="">All types</option><option value="commission">Commissions</option><option value="shop">Shop orders</option></select>
@@ -281,7 +295,7 @@ async function viewOrders(query) {
     if (open.checked) params.set('open', '1');
     const data = await get(`/admin/orders?${params}`);
     $('[data-orders-table]').innerHTML = data.items.length ? html`
-      <table class="admin-table">
+      <table class="admin-table orders-table">
         <thead><tr><th>Order</th><th>Customer</th><th>What</th><th>Status</th><th>Payment</th><th class="num">Total</th></tr></thead>
         <tbody>${data.items.map((o) => raw(html`
           <tr data-open-order="${o._id}" tabindex="0">
@@ -305,6 +319,108 @@ async function viewOrders(query) {
   await load();
 }
 
+// ---------------- New order taken outside the website ----------------
+// For orders that come in by Instagram DM, WhatsApp, a call or in person. The customer sees it in
+// their account as soon as they sign in with the same email.
+const SOURCE_NAME = { instagram: 'Instagram', whatsapp: 'WhatsApp', in_person: 'in person', phone: 'a phone call', other: 'somewhere else' };
+async function newOrderForm() {
+  const [{ items: products }, content] = await Promise.all([get('/admin/products'), get('/admin/content')]);
+  const totes = products.filter((p) => p.status === 'live');
+  const tiers = content.tiers || [];
+  const productOptions = totes.map((p) => raw(html`<option value="${p._id}" data-price="${p.price}">${p.title} · ${inr(p.price)}${p.kind === 'giftcard' ? '' : ` · ${p.stock} in stock`}</option>`));
+  const itemRow = () => html`<div class="mo-item"><select name="productId" aria-label="Tote"><option value="">Choose a tote…</option>${productOptions}</select><input name="qty" type="number" min="1" max="20" value="1" aria-label="How many"><button class="btn btn-ghost btn-sm" type="button" data-remove-item aria-label="Remove">✕</button></div>`;
+  openModal({
+    title: 'Add an order',
+    wide: true,
+    body: html`<form class="mo-form stack" data-mo novalidate>
+      <p class="helper-note">For orders that came in on Instagram, WhatsApp, a call or in person. It works just like a website order: it gets an order number and shows in your list. After saving, press <strong>Copy customer link</strong> and send it to them in the chat. That link shows them the order, and adds it to their account if they’re signed in.</p>
+
+      <fieldset class="mo-step"><legend><span>1</span> Where did it come from?</legend>
+        <div class="mo-choices">${Object.entries({ instagram: 'Instagram', whatsapp: 'WhatsApp', in_person: 'In person', phone: 'Phone call', other: 'Other' }).map(([k, v], i) => raw(html`<label><input type="radio" name="source" value="${k}" ${i === 0 ? 'checked' : ''}><span>${v}</span></label>`))}</div>
+        <div class="field"><label for="moHandle">Their Instagram or WhatsApp <small>(optional)</small></label><input id="moHandle" name="handle" placeholder="@their.handle or phone number"></div>
+      </fieldset>
+
+      <fieldset class="mo-step"><legend><span>2</span> What did they order?</legend>
+        <div class="mo-choices"><label><input type="radio" name="type" value="shop" checked><span>A ready-made tote</span></label><label><input type="radio" name="type" value="commission"><span>A custom painting</span></label></div>
+        <div data-for="shop">
+          <div data-items>${raw(itemRow())}</div>
+          <button class="btn btn-ghost btn-sm" type="button" data-add-item>+ Add another tote</button>
+          <div class="field"><label for="moDiscount">Discount you gave them, in ₹ <small>(optional)</small></label><input id="moDiscount" name="discount" type="number" min="0" placeholder="0"></div>
+        </div>
+        <div data-for="commission" hidden>
+          <div class="field"><label for="moTier">Size</label><select id="moTier" name="tier">${tiers.map((t) => raw(html`<option value="${t.key}">${t.title} (from ${inr(t.price)})</option>`))}</select></div>
+          <div class="field"><label for="moStory">What should be painted?</label><textarea id="moStory" name="story" rows="3" placeholder="Their dog Bruno on a beach at sunset, with his name underneath"></textarea></div>
+          <div class="field"><label for="moPrice">Price you agreed, in ₹ <small>(leave empty if you haven’t agreed one yet)</small></label><input id="moPrice" name="price" type="number" min="0" placeholder="e.g. 1499"></div>
+        </div>
+      </fieldset>
+
+      <fieldset class="mo-step"><legend><span>3</span> Who is it for?</legend>
+        <div class="grid-2">
+          <div class="field"><label for="moName">Name</label><input id="moName" name="name" required></div>
+          <div class="field"><label for="moPhone">Phone <small>(optional)</small></label><input id="moPhone" name="phone" inputmode="tel"></div>
+        </div>
+        <div class="field"><label for="moEmail">Email</label><input id="moEmail" name="email" type="email" required placeholder="Ask them for it in the chat"><small class="helper-note">Order updates go to this email. Once they confirm it on the website, the order also appears in their account.</small></div>
+        <details class="mo-address"><summary>Add their delivery address now <small>(you can also add it later)</small></summary>
+          <div class="field"><label for="moL1">Address</label><input id="moL1" name="address.line1" placeholder="House, street, area"></div>
+          <div class="field"><label for="moL2">Landmark <small>(optional)</small></label><input id="moL2" name="address.line2"></div>
+          <div class="grid-2"><div class="field"><label for="moCity">City</label><input id="moCity" name="address.city"></div><div class="field"><label for="moState">State</label><input id="moState" name="address.state"></div></div>
+          <div class="field"><label for="moPin">PIN code</label><input id="moPin" name="address.pincode" inputmode="numeric" maxlength="6"></div>
+        </details>
+      </fieldset>
+
+      <fieldset class="mo-step"><legend><span>4</span> Have they paid?</legend>
+        <div class="mo-choices"><label><input type="radio" name="paid" value="none" checked><span>Not yet</span></label><label><input type="radio" name="paid" value="deposit"><span>Paid half (deposit)</span></label><label><input type="radio" name="paid" value="full"><span>Paid in full</span></label></div>
+        <div class="field" data-paid-amount hidden><label for="moPaid">Amount received, in ₹ <small>(leave empty to use the usual amount)</small></label><input id="moPaid" name="paidAmount" type="number" min="0"><input name="paymentNote" placeholder="How they paid, e.g. GPay to my UPI" aria-label="How they paid" style="margin-top:8px"></div>
+      </fieldset>
+
+      <div class="field"><label for="moNotes">Notes only you can see <small>(optional)</small></label><textarea id="moNotes" name="notes" rows="2"></textarea></div>
+      <label class="check"><input type="checkbox" name="notify" checked> Email the customer a confirmation</label>
+      <div class="action-row"><button class="btn btn-primary" type="submit">Create order</button><button class="btn btn-ghost" type="button" data-modal-close>Cancel</button></div>
+    </form>`,
+    onOpen: (body, close) => {
+      const form = $('[data-mo]', body);
+      const sync = () => {
+        const type = form.type.value;
+        $$('[data-for]', form).forEach((el) => { el.hidden = el.dataset.for !== type; });
+        $('[data-paid-amount]', form).hidden = form.paid.value === 'none';
+      };
+      form.addEventListener('change', sync);
+      form.addEventListener('click', (e) => {
+        if (e.target.closest('[data-add-item]')) $('[data-items]', form).insertAdjacentHTML('beforeend', itemRow());
+        const rm = e.target.closest('[data-remove-item]');
+        if (rm && $$('.mo-item', form).length > 1) rm.closest('.mo-item').remove();
+      });
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const f = new FormData(form);
+        const num = (k) => (f.get(k) ? Number(f.get(k)) : 0);
+        const payload = {
+          source: f.get('source'), handle: f.get('handle').trim(), type: f.get('type'),
+          name: f.get('name').trim(), email: f.get('email').trim(), phone: f.get('phone').trim(),
+          items: $$('.mo-item', form).map((row) => ({ productId: $('select', row).value, qty: Number($('input', row).value) || 1 })).filter((i) => i.productId),
+          discount: num('discount'), tier: f.get('tier') || '', story: (f.get('story') || '').trim(), price: num('price'),
+          address: { line1: f.get('address.line1').trim(), line2: f.get('address.line2').trim(), city: f.get('address.city').trim(), state: f.get('address.state').trim(), pincode: f.get('address.pincode').trim() },
+          paid: f.get('paid'), paidAmount: num('paidAmount'), paymentNote: (f.get('paymentNote') || '').trim(),
+          notes: f.get('notes').trim(), notify: form.notify.checked,
+        };
+        if (!payload.name || !payload.email) { toast('Add the customer’s name and email.', { type: 'error' }); return; }
+        if (payload.type === 'shop' && !payload.items.length) { toast('Choose at least one tote.', { type: 'error' }); return; }
+        const btn = $('[type="submit"]', form);
+        try {
+          const res = await busy(btn, () => post('/admin/orders/manual', payload), 'Creating…');
+          close();
+          toast(`Order ${res.number} created. Now press “Copy customer link” and send it to them in the chat.`, { timeout: 8000 });
+          location.hash = `orders/${res.id}`;
+        } catch (error) { toastError(error); }
+      });
+      sync();
+    },
+  });
+}
+document.addEventListener('click', (e) => {
+  if (e.target.closest('[data-new-order]')) newOrderForm().catch(toastError);
+});
+
 async function openOrder(id) {
   const { order: o, flow } = await get(`/admin/orders/${id}`);
   const c = o.commission;
@@ -318,6 +434,7 @@ async function openOrder(id) {
       <div class="admin-cols">
         <section>
           <h3>Customer</h3>
+          ${o.source && o.source !== 'website' ? raw(html`<p class="helper-note">Added by hand · came from ${SOURCE_NAME[o.source] || o.source}${o.sourceHandle ? ` (${o.sourceHandle})` : ''}</p>`) : ''}
           <p><strong>${o.name}</strong><br><a href="mailto:${o.email}">${o.email}</a>${o.phone ? raw(html`<br><a href="tel:${o.phone}">${o.phone}</a> · <a href="https://wa.me/${o.phone.replace(/\D/g, '')}" target="_blank" rel="noopener">WhatsApp</a>`) : ''}</p>
           ${o.shippingAddress?.line1 ? raw(html`<h3>Ship to</h3><p>${o.shippingAddress.name}<br>${o.shippingAddress.line1}${o.shippingAddress.line2 ? raw(html`<br>${o.shippingAddress.line2}`) : ''}<br>${o.shippingAddress.city}, ${o.shippingAddress.state} ${o.shippingAddress.pincode}<br>${o.shippingAddress.phone}</p>`) : ''}
           ${o.gift?.isGift ? raw(html`<h3>Gift</h3><p>${o.gift.note || '(no note)'}${o.gift.wrap ? ' · gift wrap' : ''}</p>`) : ''}

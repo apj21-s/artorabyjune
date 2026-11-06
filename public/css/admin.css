@@ -187,3 +187,42 @@ body.is-admin{ background:#ECE4D2 url("/assets/textures/canvas.webp") 0 0 / 240p
 .admin-nav::after{ content:""; position:absolute; top:0; bottom:0; right:6px; width:1.4px; background:repeating-linear-gradient(180deg, #BFB194 0 7px, transparent 7px 12px); pointer-events:none; }
 .stat{ position:relative; }
 .stat::after{ content:""; position:absolute; inset:7px; border:1.2px dashed #CDBFA4; border-radius:inherit; pointer-events:none; }
+
+/* New order (from Instagram, WhatsApp, in person) */
+.mo-form{ gap:18px; }
+.mo-step{ display:grid; gap:12px; padding:16px 0 4px; border-top:1px dashed var(--line-strong, rgba(34,29,25,.2)); }
+.mo-step legend{ display:flex; align-items:center; gap:10px; font:600 1.05rem/1.2 'Space Grotesk', sans-serif; padding:0; margin-bottom:6px; }
+.mo-step legend span{ display:grid; place-items:center; width:26px; height:26px; border-radius:50%; background:var(--ink); color:#fff; font-size:.8rem; }
+.mo-choices{ display:flex; flex-wrap:wrap; gap:8px; }
+.mo-choices label{ cursor:pointer; }
+.mo-choices input{ position:absolute; opacity:0; pointer-events:none; }
+.mo-choices span{ display:inline-block; padding:10px 16px; border-radius:999px; border:1.5px solid rgba(34,29,25,.25); font-weight:600; font-size:.92rem; background:#fff; }
+.mo-choices input:checked + span{ background:var(--ink); color:#fff; border-color:var(--ink); }
+.mo-choices input:focus-visible + span{ outline:2px solid var(--focus); outline-offset:2px; }
+.mo-item{ display:grid; grid-template-columns:1fr 80px auto; gap:8px; margin-bottom:8px; }
+.mo-form .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.mo-address summary{ cursor:pointer; font-weight:600; padding:6px 0; }
+.mo-address[open] summary{ margin-bottom:10px; }
+@media (max-width:640px){ .mo-form .grid-2{ grid-template-columns:1fr; } }
+
+/* Overview: what needs you today */
+.todo-panel{ margin-bottom:20px; }
+.todo-panel h2{ font-size:1.15rem; margin-bottom:10px; }
+.todo-list{ list-style:none; padding:0; margin:0; display:grid; }
+.todo-list li{ display:flex; align-items:center; justify-content:space-between; gap:16px; padding:12px 0; border-top:1px dashed rgba(34,29,25,.18); }
+.todo-list li:first-child{ border-top:0; }
+.todo-list strong{ display:block; }
+.todo-list small{ display:block; color:var(--text-muted); margin-top:2px; }
+.todo-list .btn{ flex:none; }
+@media (max-width:640px){ .todo-list li{ flex-direction:column; align-items:flex-start; } }
+
+/* Phones: each order becomes a small card instead of a squashed table row */
+@media (max-width:640px){
+  .orders-table thead{ display:none; }
+  .orders-table, .orders-table tbody{ display:block; }
+  .orders-table tr{ display:grid; grid-template-columns:1fr auto; gap:4px 12px; padding:14px 12px; border-bottom:1px solid var(--line); }
+  .orders-table td{ padding:0; border:0; }
+  .orders-table td:nth-child(3){ grid-column:1 / -1; color:var(--ink-soft); }
+  .orders-table td:nth-child(4), .orders-table td:nth-child(5){ display:inline-block; }
+  .orders-table td.num{ text-align:right; }
+}
