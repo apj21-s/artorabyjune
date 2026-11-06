@@ -664,7 +664,7 @@ body:not(.is-admin) .strip-track span{ opacity:1; }
 
   /* Account: sections as a scrolling tab row */
   body:not(.is-admin) .account-layout{ display:block; }
-  body:not(.is-admin) .side-tabs{ display:flex; gap:18px; overflow-x:auto; scrollbar-width:none; margin:0 -16px 18px; padding:0 16px; position:sticky; top:0; z-index:10; background:rgba(236,228,210,.95); }
+  body:not(.is-admin) .side-tabs{ display:flex; flex-wrap:wrap; gap:2px 20px; overflow:visible; margin:0 -16px 18px; padding:4px 16px 6px; position:sticky; top:0; z-index:10; background:rgba(236,228,210,.95); }
   body:not(.is-admin) .side-tabs::-webkit-scrollbar{ display:none; }
   body:not(.is-admin) .side-tab{ flex:none; white-space:nowrap; }
 }
@@ -809,3 +809,7 @@ body:not(.is-admin) .product-media:has(img + img)::after{
 /* Checkout codes: input takes the room, the button stays its own size (phones made buttons full width) */
 .coupon-row .btn{ flex:none; width:auto; }
 .coupon-row input{ flex:1 1 auto; min-width:0; padding:10px 12px; }
+
+/* Account: the tab panels are <section>s but not page sections; no big section padding or seam */
+body:not(.is-admin) .account-panels > .tab-panel{ padding:0; }
+body:not(.is-admin) .account-panels > .tab-panel::before{ content:none; }
