@@ -271,6 +271,113 @@ describe('admin payment queue', () => {
   });
 });
 
+describe('What needs you today', () => {
+  const listed = async (payment) => {
+    const body = (await admin.get('/api/admin/orders').query({ payment })).body;
+    return { total: body.total, numbers: body.items.map((o) => o.number) };
+  };
+  const stage = (id, status) => admin.patch(`/api/admin/orders/${id}`).send({ status, notify: false });
+
+  test('each count matches the orders its link opens, and orders move between lists as money arrives', async () => {
+    const unpaid = await checkout('sunday-sun');
+    const checking = await checkout('sunday-sun');
+    await sendProof(app, checking.number, checking.token);
+    const paid = await checkout('sunday-sun');
+    await sendProof(app, paid.number, paid.token);
+    await approve(paid.id, await pendingId(paid.number), paid.order.total);
+    const over = await checkout('sunday-sun');
+    await sendProof(app, over.number, over.token);
+    await approve(over.id, await pendingId(over.number), over.order.total + 50, { amountConfirmed: true });
+
+    const placed = await request(app).post('/api/commissions').send({ tier: 'classic', story: 'A lighthouse for my dad.', name: 'Ravi', email: 'ravi.c@example.com' });
+    const com = { number: placed.body.number, token: placed.body.token };
+    com.id = String((await Order.findOne({ number: com.number }))._id);
+    await admin.post(`/api/admin/orders/${com.id}/quote`).send({ price: 1000 });
+    await request(app).post(`/api/orders/${com.number}/approve`).send({ t: com.token });
+    let due = await listed('due');
+    assert.ok(due.numbers.includes(com.number), 'deposit owed');
+    await sendProof(app, com.number, com.token, { kind: 'deposit' });
+    await approve(com.id, await pendingId(com.number), 500);
+
+    due = await listed('due');
+    let ready = await listed('ready');
+    assert.ok(due.numbers.includes(unpaid.number), 'unpaid order is waiting to pay');
+    assert.ok(!due.numbers.includes(checking.number), 'not while its proof is being checked');
+    assert.ok(!due.numbers.includes(com.number), 'a painting-stage balance isn’t chased yet');
+    assert.ok(ready.numbers.includes(paid.number));
+    assert.ok(ready.numbers.includes(over.number), 'overpaid orders are paid too');
+    assert.ok(ready.numbers.includes(com.number), 'deposit paid: ready to paint');
+    assert.ok(!ready.numbers.includes(unpaid.number));
+
+    assert.equal((await stage(com.id, 'painting')).status, 200);
+    assert.ok(!(await listed('ready')).numbers.includes(com.number), 'painting is work in progress, not a to-do');
+    assert.equal((await stage(com.id, 'packing')).status, 200);
+    due = await listed('due');
+    ready = await listed('ready');
+    assert.ok(due.numbers.includes(com.number), 'packed: the balance is needed before it ships');
+    assert.ok(!ready.numbers.includes(com.number), 'not ready to ship until the balance is paid');
+
+    const stats = (await admin.get('/api/admin/stats')).body;
+    assert.equal(stats.awaitingPayment, due.total);
+    assert.equal(stats.toShip, ready.total);
+    assert.equal(stats.refundsDue, (await listed('refund')).total);
+    assert.ok(stats.oldestDueAt);
+    assert.equal(stats.upiMissing, false);
+  });
+
+  test('the overview shows the first few orders under each item, money in by approval date, and what’s owed', async () => {
+    const unpaid = await checkout('sunday-sun');
+    const checking = await checkout('sunday-sun');
+    const sent = await sendProof(app, checking.number, checking.token);
+    const before = (await admin.get('/api/admin/stats')).body;
+    const paid = await checkout('sunday-sun');
+    await sendProof(app, paid.number, paid.token);
+    await approve(paid.id, await pendingId(paid.number), paid.order.total);
+
+    const s = (await admin.get('/api/admin/stats')).body;
+    assert.equal(s.moneyIn30 - before.moneyIn30, paid.order.total, 'counted when approved');
+    assert.ok(s.owed >= unpaid.order.total);
+    const due = (await listed('due'));
+    assert.equal(s.awaitingPayment, due.total);
+    for (const kind of Object.keys(s.previews)) assert.ok(s.previews[kind].length <= 3, kind);
+    assert.ok(s.previews.due.every((r) => r.id && r.number && r.amount > 0));
+    // Checks are oldest first, so the newest one may not be in the first three; if shown, it carries the review link ids.
+    const row = s.previews.check.find((r) => r.number === checking.number);
+    if (row) assert.ok(row.pid && row.id);
+    assert.equal(s.previews.check.length, Math.min(3, s.paymentsToCheck));
+    assert.ok(s.inStudio.shop >= 1);
+    assert.ok(s.ordersThisWeek >= 3);
+
+    // Quick find: a UTR finds its order.
+    const found = (await admin.get('/api/admin/orders').query({ q: sent.utr })).body.items;
+    assert.deepEqual(found.map((o) => o.number), [checking.number]);
+  });
+
+  test('commissions due soon or late are flagged', async () => {
+    const soon = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const placed = await request(app).post('/api/commissions').send({ tier: 'classic', story: 'A birthday tote for Ma.', name: 'Isha', email: 'isha@example.com', deadline: soon });
+    assert.equal(placed.status, 201, JSON.stringify(placed.body));
+    let s = (await admin.get('/api/admin/stats')).body;
+    assert.ok(s.deadlines >= 1);
+    assert.ok((await listed('deadline')).numbers.includes(placed.body.number));
+    await Order.updateOne({ number: placed.body.number }, { $set: { 'commission.deadline': new Date(Date.now() - 24 * 60 * 60 * 1000) } });
+    s = (await admin.get('/api/admin/stats')).body;
+    assert.ok(s.overdue >= 1);
+    await Order.updateOne({ number: placed.body.number }, { $set: { status: 'shipped' } });
+    assert.ok(!(await listed('deadline')).numbers.includes(placed.body.number), 'sent ones drop off');
+  });
+
+  test('a missing UPI ID is flagged, since customers can’t pay without it', async () => {
+    const content = (await admin.get('/api/admin/content')).body;
+    await admin.put('/api/admin/content/site').send({ ...content.site, upiId: '' });
+    try {
+      assert.equal((await admin.get('/api/admin/stats')).body.upiMissing, true);
+    } finally {
+      await admin.put('/api/admin/content/site').send({ ...content.site, upiId: 'june@okhdfc' });
+    }
+  });
+});
+
 describe('Cloudinary uploads', () => {
   test('only a genuine, signed upload for this order is accepted', async () => {
     const saved = { ...config.cloudinary, on: config.features.cloudinary };

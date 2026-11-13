@@ -43,59 +43,170 @@ const handled = (fn) => async (req, res) => {
 const STALE_APPROVAL_MS = 2 * 60 * 1000;
 
 // ---------- Overview ----------
+// What the to-do list counts. The same filters back the Orders list links, so "See them" always
+// shows exactly the orders that were counted.
+const OPEN_PROOF = { payments: { $not: { $elemMatch: { status: { $in: ['pending', 'approving'] } } } } };
+const ORDER_FILTERS = {
+  // The customer owes money now: a shop order not fully paid, a commission whose deposit isn't met,
+  // or a finished commission (packing) whose balance is still due. Not while a proof is being checked.
+  due: () => ({
+    status: { $ne: 'cancelled' },
+    total: { $gt: 0 },
+    ...OPEN_PROOF,
+    $or: [
+      { type: 'shop', paymentStatus: { $in: ['unpaid', 'partially_paid'] } },
+      { type: 'commission', 'commission.approvedAt': { $exists: true }, paymentStatus: { $in: ['unpaid', 'partially_paid'] } },
+      { type: 'commission', status: 'packing', paymentStatus: 'deposit_paid' },
+    ],
+  }),
+  // Paid enough for June's next step: start a paid shop order or a commission with its deposit,
+  // or ship anything in packing that's fully paid.
+  ready: () => ({
+    $or: [
+      { status: 'confirmed', $or: [{ type: 'shop', paymentStatus: { $in: ['paid', 'overpaid'] } }, { type: 'commission', paymentStatus: { $in: ['deposit_paid', 'paid', 'overpaid'] } }] },
+      { status: 'packing', paymentStatus: { $in: ['paid', 'overpaid'] } },
+    ],
+  }),
+  refund: () => ({ $or: [{ paymentStatus: 'overpaid' }, { status: 'cancelled', amountPaid: { $gt: 0 } }] }),
+  check: () => ({ 'payments.status': 'pending' }),
+  // Commissions not yet sent whose "needed by" date is past or within a week.
+  deadline: () => ({ type: 'commission', status: { $nin: ['shipped', 'delivered', 'cancelled'] }, 'commission.deadline': { $lte: new Date(Date.now() + 7 * DAY) } }),
+  // Work in the studio right now.
+  studio: () => ({ status: { $in: ['confirmed', 'painting', 'packing'] } }),
+};
+const DAY = 24 * 60 * 60 * 1000;
+const PREVIEW = 3; // rows shown under each to-do item
+const ROW_FIELDS = 'number type name total amountPaid depositAmount status paymentStatus createdAt commission.tierTitle commission.deadline commission.approvedAt payments refunds';
+
+// A to-do row: just enough to recognise the order at a glance.
+const row = (o, extra = {}) => ({ id: String(o._id), number: o.number, name: o.name, type: o.type, ...extra });
+
+// Money actually received in a window: approved payments by the day they were approved, minus refunds.
+async function moneyIn(from, to) {
+  const [paid, refunded] = await Promise.all([
+    Order.aggregate([
+      { $match: { 'payments.status': 'paid' } },
+      { $unwind: '$payments' },
+      { $match: { 'payments.status': 'paid' } },
+      { $addFields: { when: { $ifNull: ['$payments.reviewedAt', '$payments.at'] } } },
+      { $match: { when: { $gte: from, $lt: to } } },
+      { $group: { _id: null, sum: { $sum: '$payments.amount' } } },
+    ]),
+    Order.aggregate([
+      { $match: { 'refunds.at': { $gte: from, $lt: to } } },
+      { $unwind: '$refunds' },
+      { $match: { 'refunds.at': { $gte: from, $lt: to } } },
+      { $group: { _id: null, sum: { $sum: '$refunds.amount' } } },
+    ]),
+  ]);
+  return (paid[0]?.sum || 0) - (refunded[0]?.sum || 0);
+}
+
+// Payments in a given state, oldest first, with their order: the count and the first few rows.
+async function paymentRows(match) {
+  const [r] = await Order.aggregate([
+    { $match: { payments: { $elemMatch: match } } },
+    { $unwind: '$payments' },
+    { $match: Object.fromEntries(Object.entries(match).map(([k, v]) => [`payments.${k}`, v])) },
+    { $sort: { 'payments.submittedAt': 1 } },
+    { $facet: {
+      total: [{ $count: 'n' }],
+      rows: [{ $limit: PREVIEW }, { $project: { number: 1, name: 1, type: 1, pid: '$payments._id', amount: '$payments.expectedAmount', kind: '$payments.kind', at: { $ifNull: ['$payments.submittedAt', '$payments.at'] } } }],
+    } },
+  ]);
+  return {
+    count: r.total[0]?.n || 0,
+    oldest: r.rows[0]?.at || null,
+    rows: r.rows.map((p) => row(p, { pid: String(p.pid), amount: p.amount, note: p.kind, at: p.at })),
+  };
+}
+
+// Orders matching a filter: the count, the oldest, and the first few rows.
+async function orderRows(filter, { sort = { createdAt: 1 }, map = (o) => row(o, { at: o.createdAt }) } = {}) {
+  const [count, docs] = await Promise.all([
+    Order.countDocuments(filter),
+    Order.find(filter).sort(sort).limit(PREVIEW).select(ROW_FIELDS).lean(),
+  ]);
+  return { count, rows: docs.map(map), oldest: docs[0]?.createdAt || null };
+}
+
 router.get('/stats', async (_req, res) => {
-  const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const [revenue30, revenueAll, openCommissions, awaitingQuote, toShip, lowStock, unreadMessages, pendingReviews, recent, awaitingPayment] = await Promise.all([
-    Order.aggregate([{ $match: { createdAt: { $gte: since30 } } }, { $group: { _id: null, sum: { $sum: '$amountPaid' } } }]),
-    Order.aggregate([{ $group: { _id: null, sum: { $sum: '$amountPaid' }, count: { $sum: 1 } } }]),
-    Order.countDocuments({ type: 'commission', status: { $nin: ['delivered', 'cancelled'] } }),
-    Order.countDocuments({ type: 'commission', status: 'received' }),
-    Order.countDocuments({ status: { $in: ['confirmed', 'packing'] }, paymentStatus: { $in: ['paid', 'deposit_paid'] } }),
-    Product.find({ status: 'live', stock: { $lte: 1 } }).select('title stock slug').limit(10).lean(),
-    Message.countDocuments({ handled: false }),
+  const now = Date.now();
+  const since = (days) => new Date(now - days * DAY);
+  const [
+    check, interrupted, quote, ready, deadline, dueDocs, refundCandidates,
+    stock, unreadMessages, messageRows, pendingReviews, recent, inStudio, ordersThisWeek, orderCount, in30, inPrev30, site, launch,
+  ] = await Promise.all([
+    paymentRows({ status: 'pending' }),
+    paymentRows({ status: 'approving', approvalStartedAt: { $lte: new Date(now - STALE_APPROVAL_MS) } }),
+    orderRows({ type: 'commission', status: 'received' }, { map: (o) => row(o, { at: o.createdAt, note: o.commission?.tierTitle || '' }) }),
+    orderRows(ORDER_FILTERS.ready(), { map: (o) => row(o, { at: o.createdAt, note: o.status === 'packing' ? 'Ship it' : o.type === 'commission' ? 'Start painting' : 'Paint and pack' }) }),
+    orderRows(ORDER_FILTERS.deadline(), { sort: { 'commission.deadline': 1 }, map: (o) => row(o, { deadline: o.commission.deadline, note: STAGES[o.status]?.label || o.status }) }),
+    // Every order owing money, so "owed to you" is exact. A small studio has only a few at a time.
+    Order.find(ORDER_FILTERS.due()).sort({ createdAt: 1 }).select(ROW_FIELDS).lean(),
+    Order.find(ORDER_FILTERS.refund()).sort({ createdAt: 1 }).select(ROW_FIELDS).lean(),
+    Product.find({ status: 'live', kind: { $ne: 'giftcard' }, stock: { $lte: 1 } }).sort({ stock: 1 }).select('title stock slug').limit(10).lean(),
+    Message.countDocuments({ handled: false, spam: { $ne: true } }),
+    Message.find({ handled: false, spam: { $ne: true } }).sort({ createdAt: 1 }).limit(PREVIEW).select('name topic createdAt').lean(),
     Review.countDocuments({ approved: false }),
     Order.find().sort({ createdAt: -1 }).limit(6).select('number type name status total amountPaid createdAt paymentStatus').lean(),
-    Order.countDocuments({
-      status: { $ne: 'cancelled' },
-      payments: { $not: { $elemMatch: { status: { $in: ['pending', 'approving'] } } } },
-      $or: [
-        { type: 'shop', paymentStatus: { $in: ['unpaid', 'partially_paid'] }, total: { $gt: 0 } },
-        { type: 'commission', 'commission.approvedAt': { $exists: true }, paymentStatus: { $in: ['unpaid', 'partially_paid', 'deposit_paid'] }, total: { $gt: 0 } },
-      ],
-    }),
+    Order.aggregate([{ $match: ORDER_FILTERS.studio() }, { $group: { _id: '$type', n: { $sum: 1 } } }]),
+    Order.countDocuments({ createdAt: { $gte: since(7) } }),
+    Order.estimatedDocumentCount(),
+    moneyIn(since(30), new Date(now)),
+    moneyIn(since(60), since(30)),
+    getContent('site'),
+    getContent('launch'),
   ]);
-  const [checking, interrupted, refundCandidates] = await Promise.all([
-    Order.aggregate([
-      { $unwind: '$payments' },
-      { $match: { 'payments.status': 'pending' } },
-      { $group: { _id: null, count: { $sum: 1 }, oldest: { $min: '$payments.submittedAt' } } },
-    ]),
-    Order.countDocuments({ payments: { $elemMatch: { status: 'approving', approvalStartedAt: { $lte: new Date(Date.now() - STALE_APPROVAL_MS) } } } }),
-    Order.find({ $or: [{ paymentStatus: 'overpaid' }, { status: 'cancelled', amountPaid: { $gt: 0 } }] }).select('status amountPaid total payments refunds type depositAmount').lean(),
-  ]);
-  const refundsDue = refundCandidates.filter((o) => money.refundDue(o) > 0);
-  const site = await getContent('site');
-  const launch = await getContent('launch');
+
+  const owed = (o) => money.amountDue(o)?.amount || 0;
+  const refunds = refundCandidates.filter((o) => money.refundDue(o) > 0);
+  const studio = Object.fromEntries(inStudio.map((g) => [g._id, g.n]));
+  const upiReady = upi.isValidUpiId(site.upiId);
+
   res.json({
-    revenue30: revenue30[0]?.sum || 0,
-    revenueAll: revenueAll[0]?.sum || 0,
-    orderCount: revenueAll[0]?.count || 0,
-    openCommissions,
-    awaitingQuote,
-    toShip,
-    lowStock,
+    // Headline numbers
+    moneyIn30: in30,
+    moneyInPrev30: inPrev30,
+    owed: dueDocs.reduce((n, o) => n + owed(o), 0),
+    inStudio: { commission: studio.commission || 0, shop: studio.shop || 0 },
+    ordersThisWeek,
+    orderCount,
+    // Setup problems that stop customers paying
+    upiMissing: !upiReady,
+    checkoutPaused: require('../lib/email-code').codeMode() === 'unavailable',
+    // To-do counts. Each link opens exactly the orders counted here.
+    paymentsToCheck: check.count,
+    oldestCheckAt: check.oldest,
+    interruptedApprovals: interrupted.count,
+    refundsDue: refunds.length,
+    refundsDueAmount: refunds.reduce((n, o) => n + money.refundDue(o), 0),
+    deadlines: deadline.count,
+    overdue: deadline.rows.filter((r) => new Date(r.deadline).getTime() < now).length,
+    awaitingQuote: quote.count,
+    oldestQuoteAt: quote.oldest,
+    toShip: ready.count,
+    awaitingPayment: dueDocs.length,
+    oldestDueAt: dueDocs[0]?.createdAt || null,
+    staleDue: dueDocs.filter((o) => now - new Date(o.createdAt).getTime() > 7 * DAY).length,
+    soldOut: stock.filter((p) => p.stock <= 0).length,
+    lowStock: stock,
     unreadMessages,
     pendingReviews,
-    awaitingPayment,
-    paymentsToCheck: checking[0]?.count || 0,
-    oldestCheckAt: checking[0]?.oldest || null,
-    interruptedApprovals: interrupted,
-    refundsDue: refundsDue.length,
-    refundsDueAmount: refundsDue.reduce((n, o) => n + money.refundDue(o), 0),
-    checkoutPaused: require('../lib/email-code').codeMode() === 'unavailable',
+    // The first few rows under each to-do item
+    previews: {
+      check: check.rows,
+      interrupted: interrupted.rows,
+      refund: refunds.slice(0, PREVIEW).map((o) => row(o, { amount: money.refundDue(o), note: o.status === 'cancelled' ? 'cancelled' : 'overpaid' })),
+      deadline: deadline.rows,
+      quote: quote.rows,
+      ready: ready.rows,
+      due: dueDocs.slice(0, PREVIEW).map((o) => row(o, { amount: owed(o), at: o.createdAt, note: money.amountDue(o)?.kind || '' })),
+      messages: messageRows.map((m) => ({ id: String(m._id), name: m.name, note: m.topic || '', at: m.createdAt })),
+    },
     recent: recent.map((o) => ({ ...o, statusLabel: STAGES[o.status]?.label || o.status })),
     checklist: [
-      { key: 'payments', label: 'Your UPI ID added for payments', done: upi.isValidUpiId(site.upiId), hint: 'Customers pay this UPI ID and send you the UTR and a screenshot. Add it in Site content → Money & delivery.' },
+      { key: 'payments', label: 'Your UPI ID added for payments', done: upiReady, hint: 'Customers pay this UPI ID and send you the UTR and a screenshot. Add it in Site content → Money & delivery.' },
       { key: 'email', label: `Emails connected${config.emailProvider ? ` (${config.emailProvider === 'gmail' ? 'Gmail' : config.emailProvider})` : ''}`, done: config.features.email, hint: 'Until then no emails go out (enquiries are still saved in Messages). Set up: handover guide, "Emails: Gmail" — free, no domain needed.' },
       { key: 'uploads', label: 'Photo storage (Cloudinary) connected', done: config.features.cloudinary, hint: 'Needed to upload product photos and sketches. Set up: handover guide, Step 6.' },
       { key: 'pricingReviewed', label: 'Commission prices and turnaround reviewed', done: Boolean(launch.pricingReviewed), manual: true },
@@ -111,11 +222,11 @@ router.get('/orders', async (req, res) => {
   if (['shop', 'commission'].includes(req.query.type)) filter.type = req.query.type;
   if (req.query.status && STAGES[req.query.status]) filter.status = req.query.status;
   if (req.query.open === '1') filter.status = { $nin: ['delivered', 'cancelled'] };
-  if (req.query.payment === 'check') filter['payments.status'] = 'pending';
-  if (req.query.payment === 'refund') filter.$and = [{ $or: [{ paymentStatus: 'overpaid' }, { status: 'cancelled', amountPaid: { $gt: 0 } }] }];
+  // Payment filters from the to-do list. $and keeps them apart from the search's $or.
+  if (Object.hasOwn(ORDER_FILTERS, req.query.payment)) filter.$and = [ORDER_FILTERS[req.query.payment]()];
   if (req.query.q) {
     const q = new RegExp(escapeRegex(String(req.query.q).slice(0, 60)), 'i');
-    filter.$or = [{ number: q }, { name: q }, { email: q }, { phone: q }];
+    filter.$or = [{ number: q }, { name: q }, { email: q }, { phone: q }, { 'payments.utr': q }];
   }
   const page = Math.max(1, Number(req.query.page) || 1);
   const perPage = 25;

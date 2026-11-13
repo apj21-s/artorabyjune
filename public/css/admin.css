@@ -214,6 +214,39 @@ body.is-admin{ background:#ECE4D2 url("/assets/textures/canvas.webp") 0 0 / 240p
 .todo-list small{ display:block; color:var(--text-muted); margin-top:2px; }
 .todo-list .btn{ flex:none; }
 @media (max-width:640px){ .todo-list li{ flex-direction:column; align-items:flex-start; } }
+.todo-list li.is-urgent strong{ color:var(--cherry); }
+.todo-list li.is-quiet strong{ font-weight:600; color:var(--ink-soft); }
+.todo-text{ min-width:0; flex:1; }
+.todo-clear{ color:var(--text-muted); }
+/* The first few orders under a to-do item: one tap opens each. Seams between rows, no boxes. */
+.todo-rows{ list-style:none; padding:0; margin:8px 0 0; }
+.todo-rows li{ padding:0; border:0; display:block; }
+.todo-row{ display:grid; grid-template-columns:7.5em minmax(0,1fr) auto 8.5em; gap:12px; align-items:baseline; width:100%; padding:6px 0; border:0; border-top:1px dotted rgba(34,29,25,.16); background:none; color:var(--ink); font:inherit; font-size:.88rem; text-align:left; text-decoration:none; cursor:pointer; }
+.todo-row:hover .todo-no, .todo-row:focus-visible .todo-no{ text-decoration:underline; text-underline-offset:3px; }
+.todo-row:focus-visible{ outline:2px solid var(--focus); outline-offset:2px; }
+.todo-no{ font:600 .82rem/1.3 'IBM Plex Mono', monospace; }
+.todo-who{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.todo-who em{ font-style:normal; color:var(--text-muted); }
+.todo-amt{ font-variant-numeric:tabular-nums; text-align:right; }
+.todo-age{ color:var(--text-muted); text-align:right; font-size:.8rem; }
+.todo-age.is-late{ color:var(--cherry); font-weight:600; }
+@media (max-width:640px){
+  .todo-list li > .btn{ align-self:flex-start; }
+  .todo-text{ width:100%; }
+  .todo-row{ grid-template-columns:auto minmax(0,1fr) auto; }
+  .todo-age{ grid-column:2 / -1; text-align:left; margin-top:-4px; }
+}
+
+/* Overview header: quick find next to the main action */
+.quick-find input{ width:min(300px, 70vw); min-height:40px; padding:8px 16px; border:1px solid var(--line-strong); border-radius:999px; background:var(--white-paint); font:inherit; font-size:.9rem; }
+.admin-head .action-row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+@media (max-width:640px){ .quick-find, .quick-find input{ width:100%; } .admin-head .action-row{ width:100%; } }
+.admin-cols.is-single{ grid-template-columns:1fr; }
+.latest-table td small{ display:block; color:var(--text-faint); font-size:.76rem; white-space:nowrap; }
+.latest-table td:first-child strong{ white-space:nowrap; }
+@media (min-width:861px){ .admin-cols:not(.is-single){ grid-template-columns:minmax(0,3fr) minmax(0,2fr); } }
+.todo-list li:has(.todo-rows){ align-items:flex-start; }
+.overview-updated{ margin-top:16px; text-align:right; font-size:.78rem; }
 
 /* Phones: each order becomes a small card instead of a squashed table row */
 @media (max-width:640px){
