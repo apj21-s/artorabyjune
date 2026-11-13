@@ -256,59 +256,66 @@ function deadlineText(at) {
   return { text: `needed in ${n(days, 'day', 'days')}`, late: days <= 2 };
 }
 
-// One order under a to-do item. Payments open the side-by-side review; orders open the order.
+// Compact age for list rows: "now", "12m", "3h", "2d".
+function shortAge(at) {
+  const mins = Math.max(0, Math.round((Date.now() - new Date(at).getTime()) / 60000));
+  if (mins < 1) return 'now';
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.round(mins / 60);
+  return hours < 48 ? `${hours}h` : `${Math.round(hours / 24)}d`;
+}
+
+// One order on a single line: number, who, and amount · age. Payments open the side-by-side
+// review; orders open the order; messages open Messages.
 function todoRow(r, kind) {
   const deadline = r.deadline ? deadlineText(r.deadline) : null;
-  const age = r.at ? ago(r.at) : '';
-  const stale = kind === 'due' ? r.at && Date.now() - new Date(r.at).getTime() > 7 * DAY_MS : r.at && isOld(r.at);
+  const stale = r.at && Date.now() - new Date(r.at).getTime() > (kind === 'due' ? 7 : 1) * DAY_MS;
+  const when = deadline ? deadline.text : r.at ? shortAge(r.at) : '';
   const cells = html`
-    <span class="todo-no">${r.number || r.name}</span>
-    <span class="todo-who">${r.number ? r.name : ''}${r.note ? raw(html`<em>${r.number ? ' · ' : ''}${KIND_SHORT[r.note] || r.note}</em>`) : ''}</span>
-    <span class="todo-amt">${r.amount ? inr(r.amount) : ''}</span>
-    <span class="todo-age ${(deadline?.late || stale) ? 'is-late' : ''}">${deadline ? deadline.text : age}</span>`;
-  if (kind === 'check' || kind === 'interrupted') return html`<li><a class="todo-row" href="#payments/${r.id}/${r.pid}">${raw(cells)}</a></li>`;
-  if (kind === 'messages') return html`<li><a class="todo-row" href="#messages">${raw(cells)}</a></li>`;
-  return html`<li><button class="todo-row" type="button" data-open-order="${r.id}">${raw(cells)}</button></li>`;
+    <span class="row-no">${r.number || r.name}</span>
+    <span class="row-who">${r.number ? r.name : ''}${r.note ? raw(html`${r.number ? raw('<span class="sep"> · </span>') : ''}<em>${KIND_SHORT[r.note] || r.note}</em>`) : ''}</span>
+    <span class="row-meta">${r.amount ? raw(html`<b>${inr(r.amount)}</b>`) : ''}${r.amount && when ? ' · ' : ''}<span class="${(deadline?.late || stale) ? 'is-late' : ''}">${when}</span></span>`;
+  if (kind === 'check' || kind === 'interrupted') return html`<li><a class="ov-row" href="#payments/${r.id}/${r.pid}">${raw(cells)}</a></li>`;
+  if (kind === 'messages') return html`<li><a class="ov-row" href="#messages">${raw(cells)}</a></li>`;
+  return html`<li><button class="ov-row" type="button" data-open-order="${r.id}">${raw(cells)}</button></li>`;
 }
 
 function todoJobs(s) {
   const p = s.previews || {};
-  // How many orders each item's link opens (for "All 7 →" when only the first few are shown).
+  // How many orders each item's link opens (for "All 7" when only the first few are shown).
   const COUNT = { interrupted: s.interruptedApprovals, check: s.paymentsToCheck, deadline: s.deadlines, refund: s.refundsDue, quote: s.awaitingQuote, ready: s.toShip, messages: s.unreadMessages, due: s.awaitingPayment };
   return [
-    s.upiMissing && { urgent: true, text: 'Add your UPI ID: customers can’t pay yet', how: `Orders are still saved, but customers see no QR code to pay.${s.awaitingPayment ? ' Email the waiting customers your payment details, or add the ID and they can pay from their order page.' : ''}`, href: '#content/site', cta: 'Add UPI ID' },
-    s.checkoutPaused && { urgent: true, text: 'Emails aren’t connected, so checkout is paused', how: 'Customers confirm their email with a code before ordering. Connect Gmail (handover guide, “Emails: Gmail”) to reopen checkout.', href: '#overview', cta: 'See checklist' },
-    s.interruptedApprovals && { urgent: true, kind: 'interrupted', text: `${n(s.interruptedApprovals, 'approval was', 'approvals were')} interrupted`, how: 'Open it and press “Finish approval”. Nothing will be counted twice.', href: '#payments?status=approving', cta: 'Finish them' },
-    s.paymentsToCheck && { kind: 'check', text: `${n(s.paymentsToCheck, 'UPI payment needs', 'UPI payments need')} checking${oldest(s.oldestCheckAt)}`, how: 'Find the UTR in your bank or UPI app, check the amount, then approve or reject.', href: '#payments', cta: 'Check payments' },
-    s.overdue && { urgent: true, kind: 'deadline', text: `${n(s.overdue, 'commission is', 'commissions are')} past the customer’s date`, how: 'Message the customer with a new date, or move it along today.', href: '#orders?payment=deadline', cta: 'See them' },
-    !s.overdue && s.deadlines && { kind: 'deadline', text: `${n(s.deadlines, 'commission is', 'commissions are')} needed within a week`, how: 'These customers gave a date. Plan your painting time around them.', href: '#orders?payment=deadline', cta: 'See them' },
-    s.refundsDue && { urgent: true, kind: 'refund', text: `${n(s.refundsDue, 'order needs', 'orders need')} a refund (${inr(s.refundsDueAmount)} in all)`, how: 'Overpaid or cancelled after paying. Send the money back by UPI, then press Record refund on the order.', href: '#orders?payment=refund', cta: 'See them' },
-    s.awaitingQuote && { kind: 'quote', text: `${n(s.awaitingQuote, 'commission needs', 'commissions need')} your price and sketch${oldest(s.oldestQuoteAt)}`, how: 'Open it, type the price, add a photo of your sketch, press Send quote.', href: '#orders?status=received&type=commission', cta: 'Price them' },
-    s.toShip && { kind: 'ready', text: `${n(s.toShip, 'paid order is', 'paid orders are')} ready for your next step`, how: 'Start painting the confirmed ones; ship the packed ones and add the courier and tracking number.', href: '#orders?payment=ready', cta: 'Open them' },
-    s.soldOut && { text: `${n(s.soldOut, 'product is', 'products are')} sold out`, how: `${s.lowStock.filter((x) => x.stock <= 0).map((x) => x.title).join(', ')}. Add stock if you can make more, or hide it from the shop.`, href: '#products', cta: 'Products' },
-    s.unreadMessages && { kind: 'messages', text: `${n(s.unreadMessages, 'message', 'messages')} from the contact form`, how: 'Reply by email or phone, then mark it as handled.', href: '#messages', cta: 'Read messages' },
-    s.pendingReviews && { text: `${n(s.pendingReviews, 'review is', 'reviews are')} waiting for your OK`, how: 'Approve the ones you’d like shown on the website.', href: '#reviews', cta: 'See reviews' },
-    s.awaitingPayment && { kind: 'due', quiet: true, text: `${n(s.awaitingPayment, 'order is', 'orders are')} waiting for the customer to pay${oldest(s.oldestDueAt)}`, how: s.staleDue ? `${n(s.staleDue, 'has', 'have')} waited over a week: message the customer, or cancel to free the stock.` : 'Nothing to do unless they paid you another way. Then open the order and press Record UPI/cash payment.', href: '#orders?payment=due', cta: 'See them' },
+    s.upiMissing && { urgent: true, text: 'Add your UPI ID: customers can’t pay yet', how: `Orders are saved, but there’s no QR code to pay.${s.awaitingPayment ? ' Once it’s added, waiting customers can pay from their order page.' : ''}`, href: '#content/site', cta: 'Add it' },
+    s.checkoutPaused && { urgent: true, text: 'Checkout is paused: emails aren’t connected', how: 'Connect Gmail (handover guide, “Emails: Gmail”) to reopen checkout.', href: '#overview', cta: 'Checklist' },
+    s.interruptedApprovals && { urgent: true, kind: 'interrupted', text: `${n(s.interruptedApprovals, 'approval was', 'approvals were')} interrupted`, how: 'Open and press “Finish approval”. Nothing is counted twice.', href: '#payments?status=approving', cta: 'Finish them' },
+    s.paymentsToCheck && { kind: 'check', text: `${n(s.paymentsToCheck, 'UPI payment', 'UPI payments')} to check${oldest(s.oldestCheckAt)}`, how: 'Match the UTR and amount with your bank, then approve or reject.', href: '#payments', cta: 'Review them' },
+    s.overdue && { urgent: true, kind: 'deadline', text: `${n(s.overdue, 'commission is', 'commissions are')} past the customer’s date`, how: 'Message them with a new date, or move it along today.', href: '#orders?payment=deadline', cta: 'See dates' },
+    !s.overdue && s.deadlines && { kind: 'deadline', text: `${n(s.deadlines, 'commission', 'commissions')} needed within a week`, how: 'Plan your painting time around these dates.', href: '#orders?payment=deadline', cta: 'See dates' },
+    s.refundsDue && { urgent: true, kind: 'refund', text: `${n(s.refundsDue, 'refund', 'refunds')} to send (${inr(s.refundsDueAmount)})`, how: 'Send it back by UPI, then press Record refund on the order.', href: '#orders?payment=refund', cta: 'See refunds' },
+    s.awaitingQuote && { kind: 'quote', text: `${n(s.awaitingQuote, 'commission needs', 'commissions need')} a quote${oldest(s.oldestQuoteAt)}`, how: 'Type the price, add your sketch, press Send quote.', href: '#orders?status=received&type=commission', cta: 'Quote them' },
+    s.toShip && { kind: 'ready', text: `${n(s.toShip, 'paid order', 'paid orders')} ready for your next step`, how: 'Start the confirmed ones; ship the packed ones with a tracking number.', href: '#orders?payment=ready', cta: 'Open them' },
+    s.soldOut && { text: `${n(s.soldOut, 'product', 'products')} sold out`, how: `${s.lowStock.filter((x) => x.stock <= 0).map((x) => x.title).join(', ')}. Add stock or hide it.`, href: '#products', cta: 'Products' },
+    s.unreadMessages && { kind: 'messages', text: `${n(s.unreadMessages, 'new message', 'new messages')}`, how: 'Reply, then mark it handled.', href: '#messages', cta: 'Read them' },
+    s.pendingReviews && { text: `${n(s.pendingReviews, 'review', 'reviews')} to approve`, how: 'Approve the ones to show on the website.', href: '#reviews', cta: 'Reviews' },
+    s.awaitingPayment && { kind: 'due', quiet: true, text: `${n(s.awaitingPayment, 'order', 'orders')} waiting for the customer to pay`, how: s.staleDue ? `${n(s.staleDue, 'has', 'have')} waited over a week: nudge them, or cancel to free the stock.` : 'Nothing to do unless they paid another way (then Record UPI/cash payment).', href: '#orders?payment=due', cta: 'See unpaid' },
   ].filter(Boolean).map((j) => ({ ...j, rows: (j.kind && p[j.kind]) || [], total: (j.kind && COUNT[j.kind]) || 0 }));
 }
 
 function todoPanel(jobs) {
-  if (!jobs.length) return '<section class="paper pad todo-panel"><h2>What needs you today</h2><p class="todo-clear">All clear. New payments, orders and messages will show up here.</p></section>';
-  return html`<section class="paper pad todo-panel"><h2>What needs you today</h2><ol class="todo-list">${jobs.map((j) => raw(html`
+  if (!jobs.length) return '<section class="paper pad ov-todo"><h2>What needs you today</h2><p class="todo-clear">All clear. New payments, orders and messages will show up here.</p></section>';
+  return html`<section class="paper pad ov-todo"><h2>What needs you today</h2><ol class="todo-list">${jobs.map((j) => raw(html`
     <li class="${j.urgent ? 'is-urgent' : ''} ${j.quiet ? 'is-quiet' : ''}">
-      <div class="todo-text">
-        <strong>${j.text}</strong><small>${j.how}</small>
-        ${j.rows.length ? raw(html`<ul class="todo-rows">${j.rows.map((r) => raw(todoRow(r, j.kind)))}</ul>`) : ''}
-      </div>
-      <a class="btn btn-ghost btn-sm" href="${j.href}">${j.total > j.rows.length && j.rows.length ? `All ${j.total}` : j.cta} →</a>
+      <div class="todo-head"><strong>${j.text}</strong><a class="todo-cta" href="${j.href}">${j.total > j.rows.length && j.rows.length ? `All ${j.total}` : j.cta} <span aria-hidden="true">→</span></a></div>
+      <small class="todo-how">${j.how}</small>
+      ${j.rows.length ? raw(html`<ul class="ov-rows">${j.rows.map((r) => raw(todoRow(r, j.kind)))}</ul>`) : ''}
     </li>`))}</ol></section>`;
 }
 
 function trend(now, before) {
-  if (!before) return now ? 'nothing the 30 days before' : 'no payments yet';
+  if (!before) return now ? 'first month' : 'no payments yet';
   const pct = Math.round(((now - before) / before) * 100);
-  if (pct === 0) return `same as the 30 days before (${inr(before)})`;
-  return `${pct > 0 ? 'up' : 'down'} ${Math.abs(pct)}% on the 30 days before (${inr(before)})`;
+  if (pct === 0) return 'same as before';
+  return `${pct > 0 ? 'up' : 'down'} ${Math.abs(pct)}% on before`;
 }
 
 function summaryLine(jobs, s) {
@@ -316,6 +323,8 @@ function summaryLine(jobs, s) {
   const lead = act ? `${n(act, 'thing needs', 'things need')} you today.` : 'Nothing needs you right now.';
   return `${lead} ${inr(s.moneyIn30)} came in over the last 30 days.`;
 }
+
+let launchOpen = false; // keeps "Before launch" open across the minute refresh
 
 function renderOverview(s) {
   setBadge('orders', s.awaitingQuote + s.overdue);
@@ -327,30 +336,37 @@ function renderOverview(s) {
   const hour = new Date().getHours();
   const studio = s.inStudio.commission + s.inStudio.shop;
   main.innerHTML = html`
-    ${raw(head(`Good ${hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening'}, ${(me.name || 'June').split(' ')[0]}.`, summaryLine(jobs, s), '<form class="quick-find" role="search" data-quick-find><label class="sr-only" for="quickFind">Find an order</label><input id="quickFind" type="search" placeholder="Find order, name, phone or UTR" autocomplete="off"></form><button class="btn btn-primary btn-sm" type="button" data-new-order>+ Add an order from Instagram or WhatsApp</button>'))}
-    ${raw(todoPanel(jobs))}
-    <div class="stat-grid">
-      <div class="stat"><span>Money in, last 30 days</span><strong>${inr(s.moneyIn30)}</strong><em>${trend(s.moneyIn30, s.moneyInPrev30)}</em></div>
-      <a class="stat" href="#orders?payment=due"><span>Owed to you</span><strong>${inr(s.owed)}</strong><em>${s.awaitingPayment ? `${n(s.awaitingPayment, 'order', 'orders')} waiting to pay` : 'nobody owes you anything'}</em></a>
-      <a class="stat" href="#orders?payment=studio"><span>In the studio</span><strong>${studio}</strong><em>${n(s.inStudio.commission, 'commission', 'commissions')} · ${n(s.inStudio.shop, 'shop order', 'shop orders')}</em></a>
-      <a class="stat" href="#orders"><span>New orders, last 7 days</span><strong>${s.ordersThisWeek}</strong><em>${n(s.orderCount, 'order', 'orders')} all time</em></a>
-    </div>
-    <div class="admin-cols ${pending.length ? '' : 'is-single'}">
-      <section class="paper pad">
-        <div class="panel-title"><h2>Latest orders</h2><a href="#orders">All orders →</a></div>
-        ${s.recent.length ? raw(html`<table class="admin-table latest-table"><tbody>${s.recent.map((o) => raw(html`
-          <tr data-open-order="${o._id}" tabindex="0"><td><strong>${o.number}</strong><small>${ago(o.createdAt)}</small></td><td>${o.name}<small>${o.type === 'commission' ? 'Commission' : 'Shop'}</small></td><td>${raw(statusPill(o.status))}</td><td>${raw(payPill(o.paymentStatus))}</td><td class="num">${o.total ? inr(o.total) : '—'}</td></tr>`))}</tbody></table>`) : raw('<p class="helper-note">No orders yet. They’ll appear here the moment someone writes to June.</p>')}
-      </section>
-      ${pending.length ? raw(html`<section class="paper pad">
-        <div class="panel-title"><h2>Before launch</h2><span class="pill pill-received">${pending.length} to do</span></div>
-        <ul class="checklist">${s.checklist.map((c) => raw(html`
-          <li class="${c.done ? 'is-done' : ''}">
-            ${c.manual ? raw(html`<label class="check"><input type="checkbox" data-launch="${c.key}" ${c.done ? 'checked' : ''}> ${c.label}</label>`) : raw(html`<span class="item"><span class="tick" aria-hidden="true">${c.done ? '✓' : '○'}</span><span>${c.label}${c.done ? '' : raw('<span class="sr-only"> (not done)</span>')}</span></span>`)}
-            ${!c.done && c.hint ? raw(html`<small>${c.hint}</small>`) : ''}
-          </li>`))}</ul>
-      </section>`) : ''}
-    </div>
-    <p class="overview-updated helper-note" data-updated>Updated just now · refreshes every minute</p>`;
+    ${raw(head(`Good ${hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening'}, ${(me.name || 'June').split(' ')[0]}.`, summaryLine(jobs, s), '<form class="quick-find" role="search" data-quick-find><label class="sr-only" for="quickFind">Find an order</label><input id="quickFind" type="search" placeholder="Find order, name or UTR" autocomplete="off"></form><button class="btn btn-primary btn-sm" type="button" data-new-order title="Add an order that came in by Instagram, WhatsApp, phone or in person">+ New order</button>'))}
+    <div class="ov">
+      <dl class="ov-figures">
+        <div><dt>Money in · 30 days</dt><dd><strong>${inr(s.moneyIn30)}</strong><small>${trend(s.moneyIn30, s.moneyInPrev30)}</small></dd></div>
+        <a href="#orders?payment=due"><dt>Owed to you</dt><dd><strong>${inr(s.owed)}</strong><small>${s.awaitingPayment ? n(s.awaitingPayment, 'order', 'orders') : 'nothing owed'}</small></dd></a>
+        <a href="#orders?payment=studio"><dt>In the studio</dt><dd><strong>${studio}</strong><small>${s.inStudio.commission} commission · ${s.inStudio.shop} shop</small></dd></a>
+        <a href="#orders"><dt>New · 7 days</dt><dd><strong>${s.ordersThisWeek}</strong><small>${n(s.orderCount, 'order', 'orders')} in all</small></dd></a>
+      </dl>
+      ${raw(todoPanel(jobs))}
+      <div class="ov-side">
+        <section class="paper pad ov-latest">
+          <div class="panel-title"><h2>Latest orders</h2><a href="#orders">All →</a></div>
+          ${s.recent.length ? raw(html`<ul class="ov-rows">${s.recent.map((o) => raw(html`
+            <li><button class="ov-row" type="button" data-open-order="${o._id}">
+              <span class="row-no">${o.number}</span>
+              <span class="row-who" title="${STATUS_LABEL[o.status] || o.status}">${o.name}</span>
+              <span class="row-meta">${o.total ? raw(html`<b>${inr(o.total)}</b> · `) : ''}<span class="pay-word pay-${o.paymentStatus}">${PAY_LABEL[o.paymentStatus] || o.paymentStatus}</span></span>
+            </button></li>`))}</ul>`) : raw('<p class="helper-note">No orders yet. They’ll appear here the moment someone writes to June.</p>')}
+        </section>
+        ${pending.length ? raw(html`<details class="paper pad ov-launch" data-launch-box ${launchOpen ? 'open' : ''}>
+          <summary><h2>Before launch</h2><span class="ov-count">${pending.length} to do</span></summary>
+          <ul class="checklist">${s.checklist.map((c) => raw(html`
+            <li class="${c.done ? 'is-done' : ''}">
+              ${c.manual ? raw(html`<label class="check"><input type="checkbox" data-launch="${c.key}" ${c.done ? 'checked' : ''}> ${c.label}</label>`) : raw(html`<span class="item"><span class="tick" aria-hidden="true">${c.done ? '✓' : '○'}</span><span>${c.label}${c.done ? '' : raw('<span class="sr-only"> (not done)</span>')}</span></span>`)}
+              ${!c.done && c.hint ? raw(html`<small>${c.hint}</small>`) : ''}
+            </li>`))}</ul>
+        </details>`) : ''}
+        <p class="overview-updated helper-note">Updated just now · refreshes every minute</p>
+      </div>
+    </div>`;
+  $('[data-launch-box]')?.addEventListener('toggle', (e) => { launchOpen = e.currentTarget.open; });
   main.querySelectorAll('[data-launch]').forEach((cb) => cb.addEventListener('change', async () => {
     try {
       const content = await get('/admin/content');
