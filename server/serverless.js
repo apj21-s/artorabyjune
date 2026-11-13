@@ -11,6 +11,7 @@ function connect() {
     ready = (async () => {
       const problems = config.validate();
       if (problems.length) throw new Error(`Artora by June cannot start: ${problems.join(' ')}`);
+      config.warnings().forEach((w) => console.error(`[config] ${w}`));
       await mongoose.connect(config.mongoUri, { serverSelectionTimeoutMS: 8000 });
       await seedContent();
     })().catch((error) => {

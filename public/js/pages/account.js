@@ -25,7 +25,11 @@ function wireTabs() {
 function orderCard(o) {
   const steps = o.timeline.filter((s) => s.key !== 'cancelled');
   const link = `/order/${encodeURIComponent(o.number)}?t=${encodeURIComponent(o.token)}`;
-  const action = o.canApprove ? 'Review sketch & approve' : o.canPayBalance ? `Pay balance ${inr(o.balanceDue)}` : o.canPayShop ? 'Complete payment' : 'View details';
+  const action = o.canApprove ? 'Review sketch & approve'
+    : o.pendingPayment ? 'Payment being checked'
+      : o.canPayBalance ? `Pay balance ${inr(o.due.amount)}`
+        : o.canPayDeposit ? `Pay deposit ${inr(o.due.amount)}`
+          : o.canPayShop ? 'Complete payment' : 'View details';
   const title = o.type === 'commission' ? `${o.commission?.tierTitle || 'Commission'}${o.commission?.occasion ? ` · ${o.commission.occasion}` : ''}` : o.items.map((i) => i.title).join(', ');
   // Each order is a kraft parcel tag, strung through a hole on the left.
   return html`
@@ -38,7 +42,7 @@ function orderCard(o) {
             <h3>${title}</h3>
             <div class="meta-row"><span>${fmtDate(o.createdAt)}</span>${raw(paymentChip(o))}${o.total ? raw(html`<span>${inr(o.total)}</span>`) : ''}</div>
           </div>
-          <a class="btn ${o.canApprove || o.canPayBalance || o.canPayShop ? 'btn-primary' : 'btn-ghost'} btn-sm" href="${link}">${action}</a>
+          <a class="btn ${o.canApprove || o.canPay ? 'btn-primary' : 'btn-ghost'} btn-sm" href="${link}${o.canPay ? '#payment' : ''}">${action}</a>
         </div>
         <div class="parcel-status">
           <strong>${o.statusLabel}</strong>

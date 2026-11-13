@@ -298,8 +298,6 @@
 .quote-figures{ display:grid; grid-template-columns:1fr auto; gap:8px; margin:12px 0 18px; font-size:.95rem; }
 .quote-figures strong{ font-family:'Space Grotesk', sans-serif; }
 .action-row{ display:flex; gap:10px; flex-wrap:wrap; }
-.upi-box{ padding:18px; border-radius:var(--radius-sm); background:var(--blue-50); display:grid; gap:6px; }
-.upi-box code{ font:600 1.1rem/1.3 'IBM Plex Mono', monospace; }
 .ref-strip{ display:flex; gap:8px; flex-wrap:wrap; }
 .ref-strip img{ width:72px; height:72px; object-fit:cover; border-radius:10px; }
 .track-form{ display:grid; gap:16px; margin-bottom:24px; }

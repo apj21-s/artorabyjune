@@ -1,6 +1,5 @@
 const { test, before, after, describe } = require('node:test');
 const assert = require('node:assert/strict');
-const crypto = require('crypto');
 const { start, stop, signedIn, request, address } = require('./helpers');
 const { Product, Order, Coupon } = require('../server/models');
 
@@ -104,7 +103,8 @@ describe('shop checkout', () => {
     });
     assert.equal(res.status, 201);
     assert.match(res.body.number, /^AJ-\d{4}$/);
-    assert.equal(res.body.payment.provider, 'manual');
+    assert.equal(res.body.payment.provider, 'upi');
+    assert.equal(res.body.payment.kind, 'full');
 
     const order = await Order.findOne({ number: res.body.number });
     assert.equal(order.email, 'guest@example.com');
@@ -194,7 +194,8 @@ describe('commission journey', () => {
   test('approve → deposit paid → balance due → balance paid', async () => {
     const ap = await request(app).post(`/api/orders/${number}/approve`).send({ t: token });
     assert.equal(ap.status, 200);
-    assert.equal(ap.body.payment.provider, 'manual');
+    assert.equal(ap.body.payment.provider, 'upi');
+    assert.equal(ap.body.payment.kind, 'deposit');
     assert.equal(ap.body.payment.amount, 650);
 
     await admin.post(`/api/admin/orders/${id}/payments`).send({ kind: 'deposit', amount: 650 });
@@ -252,28 +253,5 @@ describe('order numbers', () => {
     })));
     const numbers = results.map((r) => r.body.number);
     assert.equal(new Set(numbers).size, 15);
-  });
-});
-
-describe('razorpay signatures', () => {
-  test('verify payment and webhook signatures', () => {
-    const config = require('../server/config');
-    const rp = require('../server/services/razorpay');
-    config.razorpay.keySecret = 'rzp_test_secret';
-    config.razorpay.webhookSecret = 'whsec';
-    const sig = crypto.createHmac('sha256', 'rzp_test_secret').update('order_1|pay_1').digest('hex');
-    assert.equal(rp.verifyPaymentSignature({ orderId: 'order_1', paymentId: 'pay_1', signature: sig }), true);
-    assert.equal(rp.verifyPaymentSignature({ orderId: 'order_1', paymentId: 'pay_2', signature: sig }), false);
-    const body = Buffer.from('{"event":"payment.captured"}');
-    const wsig = crypto.createHmac('sha256', 'whsec').update(body).digest('hex');
-    assert.equal(rp.verifyWebhookSignature(body, wsig), true);
-    assert.equal(rp.verifyWebhookSignature(body, 'bad'), false);
-    config.razorpay.keySecret = '';
-    config.razorpay.webhookSecret = '';
-  });
-
-  test('webhook rejects unsigned calls', async () => {
-    const res = await request(app).post('/api/payments/webhook').set('Content-Type', 'application/json').send('{"event":"payment.captured"}');
-    assert.equal(res.status, 400);
   });
 });

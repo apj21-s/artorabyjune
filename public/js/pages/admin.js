@@ -223,7 +223,19 @@ const head = (title, sub, actions = '') => html`<header class="admin-head"><div>
 const STATUS_LABEL = {
   received: 'New', quoted: 'Quoted', confirmed: 'Paid / confirmed', painting: 'Painting', packing: 'Packing', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled',
 };
-const PAY_LABEL = { unpaid: 'Unpaid', deposit_paid: 'Deposit paid', paid: 'Paid', refunded: 'Refunded' };
+const PAY_LABEL = { unpaid: 'Unpaid', partially_paid: 'Part paid', deposit_paid: 'Deposit paid', paid: 'Paid', overpaid: 'Overpaid', refunded: 'Refunded' };
+const KIND_LABEL = { full: 'Full payment', deposit: 'Deposit', balance: 'Balance' };
+const PSTATUS_LABEL = { pending: 'To check', approving: 'Approving…', paid: 'Approved', rejected: 'Rejected', created: 'Not paid (old)', failed: 'Failed (old)' };
+const REJECT_REASONS = ['Screenshot unclear', 'Amount doesn’t match', 'UTR not found in my bank', 'Payment not received yet'];
+// "3 h ago" style ages for the payment queue.
+function ago(value) {
+  const mins = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 60000));
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 48) return `${hours} h ago`;
+  return `${Math.round(hours / 24)} days ago`;
+}
+const isOld = (value) => Date.now() - new Date(value).getTime() > 24 * 60 * 60 * 1000;
 const statusPill = (s) => html`<span class="pill pill-${s}">${STATUS_LABEL[s] || s}</span>`;
 const payPill = (s) => html`<span class="pill pay-${s}">${PAY_LABEL[s] || s}</span>`;
 
@@ -232,18 +244,23 @@ const payPill = (s) => html`<span class="pill pay-${s}">${PAY_LABEL[s] || s}</sp
 function todoPanel(s) {
   const n = (count, one, many) => `${count} ${count === 1 ? one : many}`;
   const jobs = [
+    s.checkoutPaused && { urgent: true, text: 'Emails aren’t connected, so checkout is paused', how: 'Customers confirm their email with a code before ordering. Connect Gmail (handover guide, “Emails: Gmail”) to reopen checkout.', href: '#overview', cta: 'See checklist' },
+    s.interruptedApprovals && { urgent: true, text: `${n(s.interruptedApprovals, 'approval was', 'approvals were')} interrupted`, how: 'Open it and press “Finish approval”. Nothing will be counted twice.', href: '#payments?status=approving', cta: 'Finish them' },
+    s.paymentsToCheck && { text: `${n(s.paymentsToCheck, 'UPI payment needs', 'UPI payments need')} checking${s.oldestCheckAt ? ` (oldest ${ago(s.oldestCheckAt)})` : ''}`, how: 'Open each one, find the UTR in your bank or UPI app, check the amount, then approve or reject.', href: '#payments', cta: 'Check payments' },
+    s.refundsDue && { text: `${n(s.refundsDue, 'order needs', 'orders need')} a refund (${inr(s.refundsDueAmount)} in all)`, how: 'Overpaid or cancelled after paying. Send the money back by UPI, then press Record refund on the order.', href: '#orders?payment=refund', cta: 'See them' },
     s.awaitingQuote && { text: `${n(s.awaitingQuote, 'commission needs', 'commissions need')} your price and sketch`, how: 'Open it, type the price, add a photo of your sketch, press Send quote.', href: '#orders?status=received&type=commission', cta: 'Price them' },
-    s.awaitingPayment && { text: `${n(s.awaitingPayment, 'shop order is', 'shop orders are')} waiting for payment`, how: 'If the money reached your UPI, open the order and press Record UPI/cash payment.', href: '#orders?status=received&type=shop', cta: 'Check payments' },
+    s.awaitingPayment && { text: `${n(s.awaitingPayment, 'order is', 'orders are')} waiting for the customer to pay`, how: 'Nothing to do unless they paid you another way. Then open the order and press Record UPI/cash payment.', href: '#orders?open=1', cta: 'See orders' },
     s.toShip && { text: `${n(s.toShip, 'paid order is', 'paid orders are')} ready to paint, pack or ship`, how: 'Move each one to the next stage. When it leaves, add the courier and tracking number.', href: '#orders?open=1', cta: 'Open orders' },
     s.pendingReviews && { text: `${n(s.pendingReviews, 'review is', 'reviews are')} waiting for your OK`, how: 'Approve the ones you’d like shown on the website.', href: '#reviews', cta: 'See reviews' },
     s.unreadMessages && { text: `${n(s.unreadMessages, 'message', 'messages')} from the contact form`, how: 'Reply by email or phone, then mark it as handled.', href: '#messages', cta: 'Read messages' },
   ].filter(Boolean);
-  return html`<section class="paper pad todo-panel"><h2>What needs you today</h2>${jobs.length ? raw(html`<ol class="todo-list">${jobs.map((j) => raw(html`<li><div><strong>${j.text}</strong><small>${j.how}</small></div><a class="btn btn-ghost btn-sm" href="${j.href}">${j.cta} →</a></li>`))}</ol>`) : raw('<p class="helper-note">Nothing waiting on you right now. New orders, reviews and messages will show up here.</p>')}</section>`;
+  return html`<section class="paper pad todo-panel"><h2>What needs you today</h2>${jobs.length ? raw(html`<ol class="todo-list">${jobs.map((j) => raw(html`<li class="${j.urgent ? 'is-urgent' : ''}"><div><strong>${j.text}</strong><small>${j.how}</small></div><a class="btn btn-ghost btn-sm" href="${j.href}">${j.cta} →</a></li>`))}</ol>`) : raw('<p class="helper-note">Nothing waiting on you right now. New orders, reviews and messages will show up here.</p>')}</section>`;
 }
 
 async function viewOverview() {
   const s = await get('/admin/stats');
   setBadge('orders', s.awaitingQuote);
+  setBadge('payments', s.paymentsToCheck + s.interruptedApprovals);
   setBadge('reviews', s.pendingReviews);
   setBadge('messages', s.unreadMessages);
   const pending = s.checklist.filter((c) => !c.done).length;
@@ -308,6 +325,7 @@ async function viewOrders(query) {
     if (type.value) params.set('type', type.value);
     if (status.value) params.set('status', status.value);
     if (open.checked) params.set('open', '1');
+    if (q.get('payment')) params.set('payment', q.get('payment'));
     const data = await get(`/admin/orders?${params}`);
     if (!$('[data-orders-table]')) return; // left the Orders page meanwhile
     $('[data-orders-table]').innerHTML = data.items.length ? html`
@@ -499,11 +517,23 @@ async function openOrder(id) {
               <dt>Paid</dt><dd>${inr(o.amountPaid)}</dd>
               <dt>Balance</dt><dd>${inr(o.balanceDue)}</dd>
             </dl>
-            ${o.payments.filter((p) => p.status === 'paid').map((p) => raw(html`<p class="helper-note">${fmtDate(p.at)} · ${p.kind} · ${inr(p.amount)} · ${p.method}${p.razorpayPaymentId ? ` · ${p.razorpayPaymentId}` : ''}</p>`))}
-            ${o.total && o.balanceDue > 0 ? raw(html`<form class="inline-form" data-manual-pay>
-              <select name="kind" aria-label="Payment kind">${(o.type === 'shop' ? ['full'] : ['deposit', 'balance']).map((k) => raw(html`<option value="${k}" ${o.paymentStatus === 'deposit_paid' && k === 'balance' ? 'selected' : ''}>${k}</option>`))}</select>
-              <input name="amount" type="number" min="1" value="${o.type === 'commission' && o.paymentStatus === 'unpaid' ? o.depositAmount : o.balanceDue}" aria-label="Amount">
+            ${o.payments.length ? raw(html`<ul class="plain pay-rows">${o.payments.filter((p) => p.status !== 'created').map((p) => raw(html`
+              <li class="pay-row is-${p.status}">
+                <span><strong>${KIND_LABEL[p.kind] || p.kind}</strong> · ${inr(p.status === 'paid' ? p.amount : p.expectedAmount ?? p.amount)}${p.status === 'paid' && p.expectedAmount && p.amount !== p.expectedAmount ? raw(html` <em class="warn">(due ${inr(p.expectedAmount)})</em>`) : ''}</span>
+                <small>${PSTATUS_LABEL[p.status] || p.status} · ${p.method}${p.utr ? ` · UTR ${p.utr}` : ''}${p.razorpayPaymentId ? ` · ${p.razorpayPaymentId}` : ''} · ${fmtDate(p.reviewedAt || p.submittedAt || p.at, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}${p.reviewedBy ? ` · ${p.reviewedBy}` : ''}${p.rejectionReason ? ` · “${p.rejectionReason}”` : ''}</small>
+                ${['pending', 'approving'].includes(p.status) || p.hasProof ? raw(html`<a class="btn btn-ghost btn-sm" href="#payments/${o.id}/${p._id}">${p.status === 'pending' ? 'Review →' : p.status === 'approving' ? 'Finish →' : 'View →'}</a>`) : ''}
+              </li>`))}</ul>`) : ''}
+            ${(o.refunds || []).map((r) => raw(html`<p class="helper-note">${fmtDate(r.at)} · refunded ${inr(r.amount)}${r.note ? ` · ${r.note}` : ''}${r.by ? ` · ${r.by}` : ''}</p>`))}
+            ${o.refundDue > 0 ? raw(html`<p class="helper-note warn">${o.status === 'cancelled' ? 'Cancelled after paying' : 'Overpaid'}: refund ${inr(o.refundDue)}.</p>`) : ''}
+            ${o.total && o.balanceDue > 0 && o.status !== 'cancelled' ? raw(html`<form class="inline-form" data-manual-pay>
+              <select name="kind" aria-label="Payment kind">${(o.type === 'shop' ? ['full'] : ['deposit', 'balance']).map((k) => raw(html`<option value="${k}" ${o.due?.kind === k ? 'selected' : ''}>${k}</option>`))}</select>
+              <input name="amount" type="number" min="1" value="${o.due?.amount || o.balanceDue}" aria-label="Amount">
               <button class="btn btn-ghost btn-sm" type="submit">Record UPI/cash payment</button>
+            </form>`) : ''}
+            ${o.amountPaid > 0 ? raw(html`<form class="inline-form" data-refund>
+              <input name="amount" type="number" min="1" max="${o.amountPaid}" value="${o.refundDue || ''}" placeholder="₹" aria-label="Refund amount">
+              <input name="note" placeholder="Note (optional)" aria-label="Refund note">
+              <button class="btn btn-ghost btn-sm" type="submit">Record refund</button>
             </form>`) : ''}
           </div>
           <form class="paper pad stack" data-notes>
@@ -559,19 +589,221 @@ async function openOrder(id) {
       root.querySelector('[data-manual-pay]')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const f = e.target;
-        if (!(await confirmDialog(`Record ${inr(f.amount.value)} as received? The customer will get a receipt email.`, { confirm: 'Record payment', danger: false }))) return;
+        if (!(await confirmDialog(`Record ${inr(f.amount.value)} as received? Only do this for money that reached you outside the website. The customer will get a receipt email.`, { confirm: 'Record payment', danger: false }))) return;
         try {
           await post(`/admin/orders/${id}/payments`, { kind: f.kind.value, amount: Number(f.amount.value) });
           toast('Payment recorded.');
           refresh();
         } catch (error) { toastError(error); }
       });
+      root.querySelector('[data-refund]')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const f = e.target;
+        const amount = Number(f.amount.value);
+        if (!amount) { toast('Enter the amount you sent back.', { type: 'error' }); return; }
+        if (!(await confirmDialog(`Record ${inr(amount)} as refunded? Send the money first; the customer gets an email.`, { confirm: 'Record refund', danger: false }))) return;
+        try {
+          await post(`/admin/orders/${id}/refunds`, { amount, note: f.note.value.trim() });
+          toast('Refund recorded.');
+          refresh();
+        } catch (error) { toastError(error); }
+      });
+      root.querySelectorAll('a[href^="#payments/"]').forEach((a) => a.addEventListener('click', () => close()));
       root.querySelector('[data-notes]').addEventListener('submit', async (e) => {
         e.preventDefault();
         try { await patch(`/admin/orders/${id}`, { internalNotes: e.target.internalNotes.value }); toast('Notes saved.'); } catch (error) { toastError(error); }
       });
     },
   });
+}
+
+// ---------------- UPI payments: queue and review ----------------
+async function viewPayments(query) {
+  const q = new URLSearchParams(query);
+  main.innerHTML = html`
+    ${raw(head('Payments to check', 'Customers paid your UPI ID and sent the UTR and a screenshot. Match each one with your bank, then approve or reject.'))}
+    <div class="admin-toolbar">
+      <input type="search" placeholder="Search UTR, order number or name" data-q value="${q.get('q') || ''}" aria-label="Search payments">
+      <select data-status aria-label="Status"><option value="pending">To check</option><option value="approving">Interrupted approvals</option><option value="paid">Approved</option><option value="rejected">Rejected</option></select>
+      <select data-kind aria-label="Kind"><option value="">All kinds</option><option value="full">Full payments</option><option value="deposit">Deposits</option><option value="balance">Balances</option></select>
+    </div>
+    <div class="paper table-paper"><div data-pay-table><div class="skeleton-block"></div></div></div>`;
+  const qInput = $('[data-q]');
+  const status = $('[data-status]');
+  const kind = $('[data-kind]');
+  status.value = q.get('status') || 'pending';
+  kind.value = q.get('kind') || '';
+  const load = async () => {
+    const params = new URLSearchParams({ status: status.value });
+    if (kind.value) params.set('kind', kind.value);
+    if (qInput.value.trim()) params.set('q', qInput.value.trim());
+    const { items } = await get(`/admin/payments?${params}`);
+    const table = $('[data-pay-table]');
+    if (!table) return;
+    if (status.value === 'pending') setBadge('payments', items.length);
+    table.innerHTML = items.length ? html`
+      <table class="admin-table pay-table">
+        <thead><tr><th>Sent</th><th>Order</th><th>Customer</th><th>For</th><th>UTR</th><th class="num">Amount</th><th></th></tr></thead>
+        <tbody>${items.map((r) => raw(html`
+          <tr>
+            <td><span class="${['pending', 'approving'].includes(r.status) && isOld(r.submittedAt) ? 'age-old' : ''}">${['pending', 'approving'].includes(r.status) ? ago(r.submittedAt) : fmtDate(r.reviewedAt || r.submittedAt)}</span></td>
+            <td><strong>${r.number}</strong><small>${r.type}</small></td>
+            <td>${r.name}<small>${r.email}</small></td>
+            <td>${KIND_LABEL[r.kind] || r.kind}${r.lowStock ? raw('<small class="warn">Low stock: check before approving</small>') : ''}${r.interrupted ? raw('<small class="warn">Approval interrupted</small>') : ''}${r.rejectionReason ? raw(html`<small>“${r.rejectionReason}”</small>`) : ''}</td>
+            <td class="mono">${r.utr || '—'}</td>
+            <td class="num">${inr(r.status === 'paid' ? r.amount : r.expectedAmount)}${r.mismatch ? raw(html`<small class="warn">due ${inr(r.expectedAmount)}</small>`) : ''}</td>
+            <td><a class="btn ${r.status === 'pending' || r.status === 'approving' ? 'btn-primary' : 'btn-ghost'} btn-sm" href="#payments/${r.orderId}/${r.paymentId}">${r.status === 'pending' ? 'Review' : r.status === 'approving' ? 'Finish' : 'View'}</a></td>
+          </tr>`))}</tbody>
+      </table>` : html`<div class="empty-state"><h3>${status.value === 'pending' ? 'Nothing to check.' : 'Nothing here.'}</h3><p>${status.value === 'pending' ? 'New UPI payments will appear here, and you’ll get an email for each one.' : 'Try another filter.'}</p></div>`;
+  };
+  const reload = () => load().catch(toastError);
+  qInput.addEventListener('input', debounce(reload, 300));
+  [status, kind].forEach((el) => el.addEventListener('change', reload));
+  await load();
+}
+
+// One payment, side by side with its screenshot, so June can match it against her bank app.
+async function reviewPayment(orderId, paymentId) {
+  const { order: o, payment: p, others, stock } = await get(`/admin/orders/${orderId}/payments/${paymentId}`);
+  const due = p.expectedAmount ?? p.amount;
+  const proofUrl = `/api/admin/orders/${orderId}/payments/${paymentId}/proof`;
+  const short = stock.filter((s) => s.inStock < s.qty);
+  main.innerHTML = html`
+    ${raw(head(`${KIND_LABEL[p.kind] || 'Payment'} · ${o.number}`, `${PSTATUS_LABEL[p.status] || p.status}${p.submittedAt ? ` · sent ${ago(p.submittedAt)}` : ''}`, '<a class="btn btn-ghost btn-sm" href="#payments">← All payments</a>'))}
+    <div class="review-grid">
+      <section class="paper pad proof-pane">
+        ${p.hasProof ? raw(html`
+          <div class="proof-tools" role="toolbar" aria-label="Screenshot">
+            <button class="btn btn-ghost btn-sm" type="button" data-zoom="out" aria-label="Zoom out">−</button>
+            <button class="btn btn-ghost btn-sm" type="button" data-zoom="in" aria-label="Zoom in">+</button>
+            <button class="btn btn-ghost btn-sm" type="button" data-rotate>Rotate</button>
+            <a class="btn btn-ghost btn-sm" href="${proofUrl}" target="_blank" rel="noopener">Open full size ↗</a>
+          </div>
+          <div class="proof-viewer" data-viewer tabindex="0" aria-label="Payment screenshot. Use + and − to zoom."><img src="${proofUrl}" alt="Customer’s payment screenshot" data-proof-img></div>`) : raw('<p class="helper-note">No screenshot stored for this payment.</p>')}
+      </section>
+      <section class="detail-actions">
+        <div class="paper pad stack">
+          <h3>What the customer sent</h3>
+          <dl class="totals review-facts" style="border:0;padding:0">
+            <dt>Amount due</dt><dd><strong>${inr(due)}</strong></dd>
+            <dt>UTR</dt><dd class="mono">${p.utr || '—'} ${p.utr ? raw(html`<button class="link-btn" type="button" data-copy="${p.utr}">copy</button>`) : ''}</dd>
+            <dt>Sent</dt><dd>${p.submittedAt ? fmtDate(p.submittedAt, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '—'}</dd>
+            <dt>Customer</dt><dd>${o.name}<br><small>${o.email}${o.phone ? ` · ${o.phone}` : ''}</small></dd>
+            <dt>Order</dt><dd>${o.type === 'shop' ? o.items.map((i) => `${i.title} × ${i.qty}`).join(', ') : o.commission?.tierTitle || 'Commission'} · total ${inr(o.total)} · paid so far ${inr(o.amountPaid)}</dd>
+          </dl>
+          ${short.length ? raw(html`<p class="helper-note warn">Low stock: ${short.map((s) => `${s.title} (${s.inStock} left, needs ${s.qty})`).join(', ')}. Approving will flag the order as oversold.</p>`) : ''}
+          <a class="btn-link" href="#orders/${o.id}">Open the full order</a>
+        </div>
+        ${p.status === 'pending' ? raw(html`
+          <form class="paper pad stack" data-approve-form novalidate>
+            <h3>What your bank shows</h3>
+            <p class="helper-note">Open your bank or UPI app and find this UTR. Only approve when the money is really there.</p>
+            <div class="field-pair">
+              <div class="field"><label for="rvAmt">Amount received (₹)</label><input id="rvAmt" name="amount" type="number" min="1" step="1" value="${due}" required></div>
+              <div class="field"><label for="rvDate">Date in your bank (optional)</label><input id="rvDate" name="date" type="date"></div>
+            </div>
+            <div class="field"><label for="rvFrom">Sender name or UPI ID (optional)</label><input id="rvFrom" name="sender" placeholder="as shown in your bank app"></div>
+            <p class="helper-note warn" data-mismatch hidden></p>
+            <label class="check" data-amount-confirm hidden><input type="checkbox" name="amountConfirmed"> <span data-amount-confirm-text></span></label>
+            <label class="check"><input type="checkbox" name="utrMatched" required> UTR matches my bank app</label>
+            <button class="btn btn-primary" type="submit">Approve payment</button>
+          </form>
+          <form class="paper pad stack" data-reject-form novalidate>
+            <h3>Can’t find it?</h3>
+            <div class="reason-list">${REJECT_REASONS.map((r, i) => raw(html`<label class="check"><input type="radio" name="preset" value="${r}" ${i === 0 ? 'checked' : ''}> ${r}</label>`))}<label class="check"><input type="radio" name="preset" value="other"> Other…</label></div>
+            <div class="field"><label for="rvWhy">Note to the customer</label><textarea id="rvWhy" name="reason" rows="2" placeholder="They’ll see this in an email and on their order page"></textarea></div>
+            <button class="btn btn-cherry" type="submit">Reject and ask them to resend</button>
+          </form>`) : ''}
+        ${p.status === 'approving' ? raw(html`
+          <div class="paper pad stack">
+            <h3>Approval ${p.interrupted ? 'was interrupted' : 'in progress'}</h3>
+            <p class="helper-note">Approved by ${p.reviewedBy || 'an admin'} for ${inr(p.amount)}. ${p.interrupted ? 'It didn’t finish (a connection problem). Finishing is safe: stock, coupons, gift cards and emails are never done twice.' : 'If this doesn’t change in a minute, press Finish.'}</p>
+            <button class="btn btn-primary" type="button" data-finish>Finish approval</button>
+          </div>`) : ''}
+        ${['paid', 'rejected'].includes(p.status) ? raw(html`
+          <div class="paper pad stack">
+            <h3>${p.status === 'paid' ? `Approved: ${inr(p.amount)}` : 'Rejected'}</h3>
+            <p class="helper-note">${p.reviewedBy || ''}${p.reviewedAt ? ` · ${fmtDate(p.reviewedAt, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}` : ''}${p.rejectionReason ? ` · “${p.rejectionReason}”` : ''}</p>
+            ${p.bankCheck?.utrMatched ? raw(html`<p class="helper-note">Bank check: ${inr(p.bankCheck.amount)}${p.bankCheck.date ? ` on ${p.bankCheck.date}` : ''}${p.bankCheck.sender ? ` from ${p.bankCheck.sender}` : ''} · UTR matched</p>`) : ''}
+          </div>`) : ''}
+        ${others.length ? raw(html`<div class="paper pad stack"><h3>Other payments on this order</h3><ul class="plain pay-rows">${others.map((x) => raw(html`<li class="pay-row is-${x.status}"><span>${KIND_LABEL[x.kind] || x.kind} · ${inr(x.status === 'paid' ? x.amount : x.expectedAmount ?? x.amount)}</span><small>${PSTATUS_LABEL[x.status] || x.status}${x.utr ? ` · UTR ${x.utr}` : ''} · ${fmtDate(x.at)}${x.by ? ` · ${x.by}` : ''}${x.reason ? ` · “${x.reason}”` : ''}</small></li>`))}</ul></div>`) : ''}
+      </section>
+    </div>`;
+
+  // Screenshot zoom (buttons, keys, ctrl/⌘ + wheel or pinch) and rotate.
+  const img = $('[data-proof-img]');
+  const viewer = $('[data-viewer]');
+  let scale = 1;
+  let turn = 0;
+  const apply = () => { img.style.transform = `scale(${scale}) rotate(${turn}deg)`; viewer.classList.toggle('is-zoomed', scale > 1); };
+  const zoom = (d) => { scale = Math.min(4, Math.max(1, Math.round((scale + d) * 4) / 4)); apply(); };
+  $$('[data-zoom]').forEach((b) => b.addEventListener('click', () => zoom(b.dataset.zoom === 'in' ? 0.5 : -0.5)));
+  $('[data-rotate]')?.addEventListener('click', () => { turn = (turn + 90) % 360; apply(); });
+  viewer?.addEventListener('wheel', (e) => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); zoom(e.deltaY < 0 ? 0.25 : -0.25); }, { passive: false });
+  viewer?.addEventListener('keydown', (e) => { if (e.key === '+' || e.key === '=') zoom(0.5); if (e.key === '-') zoom(-0.5); });
+  img?.addEventListener('click', () => zoom(scale >= 3 ? -3 : 1));
+  img?.addEventListener('error', () => { viewer.innerHTML = '<p class="helper-note">The screenshot couldn’t be loaded. Try “Open full size”.</p>'; });
+
+  $('[data-copy]')?.addEventListener('click', async (e) => {
+    try { await navigator.clipboard.writeText(e.currentTarget.dataset.copy); toast('UTR copied. Paste it into your bank app’s search.'); } catch { toast(e.currentTarget.dataset.copy); }
+  });
+
+  const af = $('[data-approve-form]');
+  if (af) {
+    const check = () => {
+      const amt = Number(af.amount.value);
+      const differs = amt && amt !== due;
+      $('[data-mismatch]').hidden = !differs;
+      $('[data-amount-confirm]').hidden = !differs;
+      if (differs) {
+        $('[data-mismatch]').textContent = amt < due
+          ? `That’s ${inr(due - amt)} less than was due. It will be recorded as a part payment and the customer will be asked for the rest.`
+          : `That’s ${inr(amt - due)} more than was due. The order will be marked overpaid so you can refund the extra.`;
+        $('[data-amount-confirm-text]').textContent = `My bank shows ${inr(amt)}`;
+      }
+    };
+    af.amount.addEventListener('input', check);
+    af.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const amount = Number(af.amount.value);
+      if (!Number.isInteger(amount) || amount < 1) { toast('Enter the amount in whole rupees.', { type: 'error' }); return; }
+      if (!af.utrMatched.checked) { toast('Tick “UTR matches my bank app” once you’ve found it.', { type: 'error' }); return; }
+      if (amount !== due && !af.amountConfirmed.checked) { toast(`Tick “My bank shows ${inr(amount)}” to confirm the different amount.`, { type: 'error' }); return; }
+      await busy(e.submitter, async () => {
+        try {
+          const r = await post(`/admin/orders/${orderId}/payments/${paymentId}/approve`, {
+            amount,
+            bankCheck: { date: af.date.value, sender: af.sender.value.trim(), utrMatched: true, amountConfirmed: af.amountConfirmed.checked },
+          });
+          toast(r.due ? `Approved. ${inr(r.due.amount)} is still due; the customer has been told.` : 'Approved. The customer has been emailed.');
+          location.hash = '#payments';
+        } catch (error) { toastError(error); if (error.status === 409) route(); }
+      });
+    });
+  }
+
+  const rf = $('[data-reject-form]');
+  rf?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const preset = rf.querySelector('input[name="preset"]:checked')?.value;
+    const note = rf.reason.value.trim();
+    const reason = preset === 'other' ? note : [preset, note].filter(Boolean).join('. ');
+    if (reason.length < 3) { toast('Write a short note for the customer.', { type: 'error' }); return; }
+    if (!(await confirmDialog(`Reject this payment? ${o.name} will get an email asking them to resend: “${reason}”`, { confirm: 'Reject' }))) return;
+    try {
+      await post(`/admin/orders/${orderId}/payments/${paymentId}/reject`, { reason });
+      toast('Rejected. The customer has been asked to resend.');
+      location.hash = '#payments';
+    } catch (error) { toastError(error); if (error.status === 409) route(); }
+  });
+
+  $('[data-finish]')?.addEventListener('click', (e) => busy(e.currentTarget, async () => {
+    try {
+      const r = await post(`/admin/orders/${orderId}/payments/${paymentId}/finish`);
+      toast(r.already ? 'It had already finished. All good.' : 'Approval finished.');
+      route();
+    } catch (error) { toastError(error); }
+  }));
 }
 
 // ---------------- Generic collection (products, coupons, reviews) ----------------
@@ -750,8 +982,8 @@ const CONTENT = {
         { name: 'cartReminders', label: 'Email one reminder when someone leaves a bag at checkout', type: 'checkbox', help: 'Sent 6 hours later, once, with a one-click opt-out. Needs order emails connected.' },
         { name: 'dispatchDays', label: 'Dispatch time (days)', placeholder: '2–3' },
         { name: 'deliveryDays', label: 'Delivery time (days)', placeholder: '3–7' },
-        { name: 'upiId', label: 'UPI ID (used when Razorpay isn’t connected)', placeholder: 'june@okhdfc' },
-        { name: 'upiName', label: 'UPI display name' },
+        { name: 'upiId', label: 'UPI ID customers pay', placeholder: 'june@okhdfc', help: 'Shown at checkout with a QR code. Payments arrive in the bank account linked to this UPI ID.' },
+        { name: 'upiName', label: 'Name shown in the UPI app', placeholder: 'Artora by June' },
       ]],
       ['Contact', [
         { name: 'supportEmail', label: 'Support email' },
@@ -1032,7 +1264,7 @@ async function route() {
   $$('[data-nav]').forEach((a) => a.classList.toggle('is-active', a.dataset.nav === view));
   const current = $(`.admin-nav [data-nav="${view}"]`) || $('.admin-nav [data-nav="overview"]');
   $('[data-current-section]').textContent = current ? current.firstChild.textContent.trim() : '';
-  const inMore = !['overview', 'orders', 'products', 'messages'].includes(view);
+  const inMore = !['overview', 'orders', 'payments', 'messages'].includes(view);
   $('[data-menu-toggle]')?.classList.toggle('is-active', inMore);
   main.onclick = null;
   main.onchange = null;
@@ -1042,6 +1274,10 @@ async function route() {
     if (view === 'orders') {
       await viewOrders(query);
       if (arg) openOrder(arg).catch(toastError);
+    } else if (view === 'payments') {
+      const [, orderId, paymentId] = pathPart.split('/');
+      if (orderId && paymentId) await reviewPayment(orderId, paymentId);
+      else await viewPayments(query);
     } else if (COLLECTIONS[view]) await viewCollection(view);
     else if (view === 'content') await viewContent(arg);
     else if (view === 'messages') await viewMessages();
@@ -1055,7 +1291,7 @@ async function route() {
 }
 function routeRefresh() {
   const view = (location.hash.slice(1) || 'overview').split(/[/?]/)[0];
-  if (view === 'orders' || view === 'overview') route();
+  if (['orders', 'overview', 'payments'].includes(view)) route();
 }
 
 // Rows anywhere that open an order.

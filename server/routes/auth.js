@@ -1,24 +1,17 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const config = require('../config');
-const { User, Order } = require('../models');
+const { User } = require('../models');
 const { startSession, endSession, syncRole } = require('../middleware/auth');
 const { validate, z, str, email } = require('../middleware/validate');
 const { limiters } = require('../middleware/security');
 const { randomToken, sha256, safeReturnPath, safeEqual } = require('../lib/util');
 const mail = require('../services/email');
+const { claimGuestOrders } = require('../lib/accounts');
 
 const router = express.Router();
 
 const password = () => z.string().min(8, 'Passwords need at least 8 characters.').max(200);
-
-// Guest orders placed with this email become visible in the new account.
-// Orders placed with an email join that account only once the person has proved they own the email,
-// so nobody can sign up with someone else's address and read their orders.
-async function claimGuestOrders(user) {
-  if (!user.emailVerified) return;
-  await Order.updateMany({ email: user.email, userId: { $exists: false } }, { $set: { userId: user._id } });
-}
 
 async function sendVerification(user) {
   if (!config.features.email) return false;

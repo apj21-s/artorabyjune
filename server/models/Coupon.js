@@ -11,6 +11,8 @@ const CouponSchema = new mongoose.Schema({
   uses: { type: Number, default: 0 },
   active: { type: Boolean, default: true },
   note: String,
+  // Orders already counted in `uses`, so a retried approval never counts twice.
+  usedByOrders: { type: [String], default: [], select: false },
 }, { timestamps: true });
 
 module.exports = mongoose.models.Coupon || mongoose.model('Coupon', CouponSchema);

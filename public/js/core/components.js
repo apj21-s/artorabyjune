@@ -58,11 +58,15 @@ export function timeline(steps = []) {
     </li>`))}</ol>`;
 }
 
+// Payment state as a small typed label (not a badge): a word on the order, like a stamp.
 export function paymentChip(order) {
+  if (order.pendingPayment) return html`<span class="status-chip is-due">Payment being checked</span>`;
   const map = {
     paid: ['Paid', 'is-paid'],
+    overpaid: ['Paid', 'is-paid'],
     deposit_paid: ['Deposit paid', 'is-due'],
-    unpaid: [order.type === 'commission' && order.status === 'received' ? 'Awaiting quote' : 'Payment due', 'is-due'],
+    partially_paid: ['Part paid', 'is-due'],
+    unpaid: [order.type === 'commission' && ['received', 'quoted'].includes(order.status) && !order.due ? 'Awaiting quote' : 'Payment due', 'is-due'],
     refunded: ['Refunded', 'is-cancel'],
   };
   const [label, cls] = map[order.paymentStatus] || [order.paymentStatus, ''];

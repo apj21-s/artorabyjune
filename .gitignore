@@ -7,3 +7,5 @@ coverage/
 .vercel
 .env*
 !.env.example
+public/vendor/tesseract/
+private_uploads/

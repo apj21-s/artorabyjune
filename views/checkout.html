@@ -7,13 +7,30 @@
 {{> header}}
 <main id="main">
 <div class="wrap">
-  <section class="page-hero page-hero-tight"><h1>Almost yours.</h1></section>
-  <div class="checkout-layout">
+  <section class="page-hero page-hero-tight">
+    <h1 data-step-title>Almost yours.</h1>
+    <ol class="co-steps" aria-label="Checkout steps">
+      <li class="is-current" data-step-mark="1" aria-current="step"><span class="co-dab">1</span>Details</li>
+      <li data-step-mark="2"><span class="co-dab">2</span>Pay by UPI</li>
+      <li data-step-mark="3"><span class="co-dab">3</span>Done</li>
+    </ol>
+  </section>
+  <div class="checkout-layout" data-step-panel="1">
     <form class="checkout-form crumpled" data-checkout novalidate>
       <fieldset><legend>Contact</legend>
         <div class="field-pair">
           <div class="field"><label for="coName">Full name</label><input id="coName" name="name" autocomplete="name" required></div>
           <div class="field"><label for="coEmail">Email</label><input id="coEmail" name="email" type="email" autocomplete="email" required></div>
+        </div>
+        <div class="email-code" data-email-code>
+          <p class="email-code-why" data-code-why>We’ll email you a 6-digit code to confirm this address, so your order updates reach you.</p>
+          <button class="btn-text email-code-send" type="button" data-send-code>Send me the code</button>
+          <div class="email-code-row" data-code-row hidden>
+            <div class="field"><label for="coCode">Code from your email</label><input id="coCode" name="emailCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="6 digits"></div>
+            <button class="btn btn-ghost" type="button" data-verify-code>Confirm</button>
+          </div>
+          <p class="email-code-hint" data-code-hint hidden></p>
+          <p class="email-ok" data-email-ok hidden><span aria-hidden="true">✓</span> Email confirmed. <button class="link-copy" type="button" data-change-email>change</button></p>
         </div>
         <div class="field"><label for="coPhone">Phone</label><input id="coPhone" name="phone" type="tel" autocomplete="tel" required placeholder="10-digit mobile"></div>
       </fieldset>
@@ -43,8 +60,8 @@
         </div>
         <label class="check"><input type="checkbox" name="gift.wrap" data-giftwrap> Add gift wrap <span data-giftwrap-fee></span></label>
       </fieldset>
-      <button class="btn btn-primary btn-block btn-lg" type="submit" data-pay>Pay securely</button>
-      <p class="helper-note center">Payments are processed securely by Razorpay. UPI, cards and netbanking accepted.</p>
+      <button class="btn btn-primary btn-block btn-lg" type="submit" data-pay>Continue to payment</button>
+      <p class="helper-note center">Next, you’ll pay by UPI (any app: Google Pay, PhonePe, Paytm…) and send June the payment details.</p>
     </form>
     <aside class="order-summary receipt" data-summary>
       <h2 class="receipt-head">Your bag · Artora by June</h2>
@@ -53,6 +70,19 @@
       <form class="coupon-row" data-coupon><label class="sr-only" for="coupon">Coupon</label><input id="coupon" name="coupon" placeholder="Coupon code" autocomplete="off"><button class="btn btn-ghost" type="submit">Apply</button></form>
       <dl class="totals" data-totals></dl>
     </aside>
+  </div>
+  <div class="co-pay" data-step-panel="2" hidden>
+    <p class="co-saved">Order <span class="order-no" data-co-number></span> is saved. Pay below, then send the details.</p>
+    <div data-upi-panel></div>
+    <p class="helper-note center">Need a break? Your order is saved. You can pay later from its <a data-co-order-link href="/account">order page</a>.</p>
+  </div>
+  <div class="co-done" data-step-panel="3" hidden>
+    <img class="order-welcome-art" src="/assets/june-character.svg" alt="" width="304" height="218">
+    <span class="order-no" data-done-number></span>
+    <h2>Payment sent for checking.</h2>
+    <p>June matches every UPI payment with her bank, usually within a few hours. Your order is confirmed once she has, and you’ll get an email.</p>
+    <p class="mail-hint" data-done-mail></p>
+    <a class="btn btn-primary" data-done-link href="/account">View your order</a>
   </div>
 </div>
 </main>

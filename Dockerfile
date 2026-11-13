@@ -4,14 +4,18 @@ ENV NODE_ENV=production
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 COPY server ./server
 COPY public ./public
 COPY views ./views
+COPY tools/vendor-tesseract.js ./tools/vendor-tesseract.js
+# The on-device screenshot reader used on the payment page (copied from node_modules).
+RUN node tools/vendor-tesseract.js
 
-# Local uploads (only used when Cloudinary isn't connected and ALLOW_LOCAL_UPLOADS is set)
-RUN mkdir -p /app/uploads && chown node:node /app/uploads
+# Local uploads (only used when Cloudinary isn't connected and ALLOW_LOCAL_UPLOADS is set).
+# Payment screenshots go to private_uploads, which is never served publicly.
+RUN mkdir -p /app/uploads /app/private_uploads && chown node:node /app/uploads /app/private_uploads
 USER node
 
 EXPOSE 3000

@@ -1,16 +1,31 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "regions": ["bom1"],
+  "regions": [
+    "bom1"
+  ],
   "outputDirectory": "public",
   "functions": {
-    "api/index.js": { "includeFiles": "{views/**,public/assets/email/**}", "maxDuration": 30 },
-    "api/cron/reminders.js": { "includeFiles": "public/assets/email/**", "maxDuration": 60 }
+    "api/index.js": {
+      "includeFiles": "{views/**,public/assets/email/**}",
+      "maxDuration": 30
+    },
+    "api/cron/reminders.js": {
+      "includeFiles": "public/assets/email/**",
+      "maxDuration": 60
+    }
   },
   "rewrites": [
-    { "source": "/((?!api/cron/).*)", "destination": "/api/index" }
+    {
+      "source": "/((?!api/cron/).*)",
+      "destination": "/api/index"
+    }
   ],
   "crons": [
-    { "path": "/api/cron/reminders", "schedule": "30 3 * * *" }
-  ]
+    {
+      "path": "/api/cron/reminders",
+      "schedule": "30 3 * * *"
+    }
+  ],
+  "buildCommand": "node tools/vendor-tesseract.js"
 }

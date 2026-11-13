@@ -50,17 +50,18 @@ const config = {
     clientId: env.GOOGLE_CLIENT_ID || '',
     clientSecret: env.GOOGLE_CLIENT_SECRET || '',
   },
-  razorpay: {
-    keyId: env.RAZORPAY_KEY_ID || '',
-    keySecret: env.RAZORPAY_KEY_SECRET || '',
-    webhookSecret: env.RAZORPAY_WEBHOOK_SECRET || '',
+  payments: {
+    // Checkout emails must be proven with a one-time code. In production there is no bypass:
+    // if email can't be sent, checkout pauses instead of accepting unverified addresses.
+    requireEmailCode: isProd || env.REQUIRE_CHECKOUT_EMAIL_CODE === '1',
   },
   plausibleDomain: env.PLAUSIBLE_DOMAIN || '',
   uploadsDir: env.UPLOADS_DIR || require('path').join(__dirname, '..', 'uploads'),
+  // Never served publicly (payment screenshots when Cloudinary isn't connected).
+  privateUploadsDir: env.PRIVATE_UPLOADS_DIR || require('path').join(__dirname, '..', 'private_uploads'),
 };
 
 config.features = {
-  razorpay: Boolean(config.razorpay.keyId && config.razorpay.keySecret),
   cloudinary: Boolean(config.cloudinary.cloudName && config.cloudinary.apiKey && config.cloudinary.apiSecret),
   email: false, // set below
   google: Boolean(config.google.clientId && config.google.clientSecret),
@@ -87,6 +88,14 @@ function validate() {
   return problems;
 }
 
+// Not fatal (the shop can still be browsed), but loud: checkout pauses until fixed.
+function warnings() {
+  const out = [];
+  if (isProd && !config.features.email) out.push('FATAL for checkout: no email provider is set, so checkout email codes cannot be sent and checkout is paused. Set GMAIL_USER and GMAIL_APP_PASSWORD.');
+  return out;
+}
+
 config.validate = validate;
+config.warnings = warnings;
 
 module.exports = config;

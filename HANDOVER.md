@@ -74,16 +74,17 @@ Needed for customer reference photos, your sketches, and product photos.
 1. Sign up at **cloudinary.com** → Dashboard shows **Cloud name**, **API key** and **API secret**.
 2. Paste them into Render as `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`.
 
-### e. Payments: Razorpay
-Until Razorpay is connected, customers see your **UPI ID** (set it in Admin → Site content) and you mark payments as received yourself in Admin → Orders → **Record UPI/cash payment**.
+### e. Payments: UPI (no fees, no sign-up)
+Customers pay straight into your bank through your **UPI ID**. There's nothing to sign up for and no fee per payment.
 
-To accept UPI, cards and netbanking online:
-1. Sign up at **razorpay.com** and complete KYC (needs PAN and bank account; takes a few days).
-2. **Settings → API Keys** → generate keys → paste into Render as `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`.
-3. **Settings → Webhooks** → add `APP_URL/api/payments/webhook` with events **payment.captured** and **order.paid**, set a secret, and paste the same secret into Render as `RAZORPAY_WEBHOOK_SECRET`.
-4. Test with Razorpay's **Test mode** keys first, then switch to **Live** keys.
+1. Admin → **Site content** → **Money & delivery** → **UPI ID customers pay** (e.g. `june@okhdfc`) and the **Name shown in the UPI app**. The site refuses anything that doesn't look like a UPI ID.
+2. That's it. At checkout the customer sees a QR code and, on a phone, buttons that open Google Pay, PhonePe or Paytm with the amount and order number filled in.
+3. After paying, the customer types the **12-digit UTR** (the UPI reference) and uploads a **screenshot**. The site can read the UTR off the screenshot for them, on their phone. They always check it before sending.
+4. You get an email: **"Check UPI payment · AJ-0042 · ₹1,199"**. The order isn't confirmed until you approve it (see "Checking a UPI payment" below).
 
-Razorpay takes about 2% per payment and pays out to your bank automatically.
+**Emails must be connected (section c).** Every checkout email is confirmed with a 6-digit code, so fake or mistyped addresses can't place orders. In production, if emails stop working, checkout pauses (customers see a message to contact you on Instagram/WhatsApp) instead of letting unconfirmed addresses through, and the Admin overview shows a red notice.
+
+Screenshots are private: only admins can see them, through the admin. They're deleted automatically 180 days after an order is settled; the UTR and your bank-check notes stay on the order.
 
 ### f. Your own domain (optional, ~₹800–1,500/year)
 Buy a domain (GoDaddy, Namecheap, Hostinger…). In Render → your service → **Settings → Custom Domains**, add it and follow the DNS steps. Then change `APP_URL` to the new `https://` address.
@@ -100,9 +101,10 @@ After changing any setting in Render, it restarts the site by itself.
 
 The **Before launch** card on the Admin overview tracks this list:
 
-- [ ] Payments, emails and photo storage connected (sections c–e above)
+- [ ] Emails and photo storage connected (sections c–d above)
 - [ ] **Commission prices and turnaround** set (Admin → Site content → Tiers)
-- [ ] **Your UPI ID** added (Admin → Site content → Site), even with Razorpay, as a backup
+- [ ] **Your UPI ID** added (Admin → Site content → Money & delivery)
+- [ ] One real ₹1 test: buy something cheap (or make a ₹1 coupon), pay from your own phone, send the UTR and screenshot, and approve it in Admin → Payments. Do this on an Android phone and an iPhone if you can, and try the Google Pay, PhonePe and Paytm buttons.
 - [ ] **Sample products** replaced with real ones and real photos (Admin → Products)
 - [ ] **Sample reviews** replaced with real ones (Admin → Reviews)
 - [ ] **Privacy, Terms, Shipping & Returns** pages read and adjusted for your business. Add your business address and GST number if you have one.
@@ -117,7 +119,9 @@ The **Before launch** card on the Admin overview tracks this list:
 | Reply to a new commission | Admin → **Orders** → open it → **Send quote** (price, note, sketch photo) |
 | Move an order to the next stage | Open the order → pick the stage → **Update**. The customer is emailed automatically. Untick **Email the customer** to skip that. |
 | Add shipping tracking | Open the order → fill in the courier, tracking number and tracking link → mark **Shipped** |
-| Record a UPI/cash payment | Open the order → **Record UPI/cash payment** |
+| Check a UPI payment | Admin → **Payments** (or the email link) → see "Checking a UPI payment" below |
+| Record money paid another way (cash, a transfer they didn't send proof for) | Open the order → **Record UPI/cash payment** |
+| Refund someone | Send the money back by UPI first, then open the order → **Record refund** (amount and a short note). The customer gets an email. |
 | Add or edit a product | Admin → **Products** → **+ New**. The first photo is the cover. Stock 0 shows "Sold out". Raising stock emails everyone who asked to be notified. |
 | Run a sale | Admin → **Coupons** → percent or flat amount, minimum order, expiry, usage limit |
 | Pair two totes as a bundle | Admin → **Products** → open one → **Bundle with** (the other product's slug, e.g. `sunflower-pouch`) and **Bundle discount (₹)**. When both are in a bag, the discount comes off automatically. |
@@ -131,6 +135,23 @@ The **Before launch** card on the Admin overview tracks this list:
 | Download orders or subscribers | **Export CSV** button on Orders and Subscribers |
 | Give someone else admin access | Admin → **Admin access** → add their email. They sign up with that email. |
 
+### Checking a UPI payment
+1. Open **Admin → Payments**. The oldest payment waiting is at the top; anything older than a day is in red.
+2. Press **Review**. The screenshot is on the left (zoom with + and −, rotate, or open it full size). What the customer sent is on the right.
+3. Open your bank or UPI app and **search for the UTR** (use the **copy** link). Check the money is really there.
+4. Fill in **What your bank shows**: the amount received (already filled with the amount due), optionally the date and the sender's name, and tick **UTR matches my bank app**.
+5. Press **Approve payment**. The customer gets a "Payment confirmed" email, stock is taken off, and the order moves to **Payment confirmed**.
+
+**If the amount is different:** type what actually arrived. The site asks you to tick "My bank shows ₹…" to be sure.
+- **Less** than due: it's recorded as a part payment, the order is not confirmed, and the customer is asked for the rest on their order page.
+- **More** than due: the order is marked **Overpaid** and "What needs you today" reminds you to refund the extra. Send it back by UPI, then press **Record refund** on the order.
+
+**If you can't find it:** pick a reason (Screenshot unclear, Amount doesn't match, UTR not found, Payment not received yet, or your own words) and press **Reject**. The customer gets an email with your note and can send a new UTR or screenshot from their order page. Their order stays saved. After 5 tries an order stops accepting proofs and you get an email to sort it out with them directly.
+
+**If an approval was interrupted** (bad connection, the page closed): "What needs you today" shows it. Open it and press **Finish approval**. It's safe: stock, coupons, gift cards and emails are never done twice. The daily job also finishes any it finds.
+
+**The same UTR can't be used twice**, on any order. If you reject a payment, its UTR is freed so the customer can resend it with a clearer screenshot. Cancelling an order also closes any payment still waiting.
+
 **If something sells twice:** one-of-a-kind totes are reserved when payment arrives. If two people pay for the last one at the same moment, you get an email titled "Action needed", and the second order has an **OVERSOLD** note. Contact that customer to offer a repaint, a swap or a refund.
 
 ---
@@ -143,7 +164,7 @@ The **Before launch** card on the Admin overview tracks this list:
 | MongoDB Atlas M0 | Free |
 | Cloudinary | Free tier covers a small shop |
 | Gmail (emails) | Free, about 500 emails/day |
-| Razorpay | ~2% per payment, no monthly fee |
+| UPI payments | Free (straight to your bank) |
 | Domain | ~₹800–1,500/year |
 
 ---
@@ -153,6 +174,8 @@ The **Before launch** card on the Admin overview tracks this list:
 - **Site won't start:** Render → your service → **Logs**. The first lines say exactly which setting is missing (e.g. "JWT_SECRET must be…").
 - **No emails arriving:** Admin → Messages → **Send test email**. "Login failed" means the App Password is wrong or was deleted: create a new one and update `GMAIL_APP_PASSWORD`. Otherwise check the Email log and the customer's spam folder.
 - **Photo upload says it isn't set up:** add the three Cloudinary settings.
-- **Payment taken but order still "unpaid":** the webhook will usually catch up within a minute. If not, check the payment in the Razorpay dashboard and use **Record UPI/cash payment** on the order.
+- **Customer says they paid but nothing is in Admin → Payments:** they haven't sent the UTR and screenshot yet. Send them their order link (open the order → **Copy customer link**) so they can do it from the order page. If they paid but can't send proof, check your bank and use **Record UPI/cash payment**.
+- **Checkout says it's paused:** emails aren't working, so email codes can't be sent. Fix emails (Admin → Messages → **Send test email**); checkout reopens by itself.
+- **Customer didn't get the email code:** it can take a minute, and it may be in spam. They can ask for a new one after 30 seconds (at most 5 an hour).
 - **Forgot admin password:** use "Forgot your password?" on the login page (needs emails connected). A developer can also run `npm run create-admin -- email "new-password"`.
 - **Backups:** MongoDB Atlas free tier has no automatic backups. Once a month, export orders as CSV from the admin, or upgrade Atlas for automatic backups.

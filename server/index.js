@@ -12,6 +12,7 @@ async function main() {
     process.exit(1);
   }
 
+  config.warnings().forEach((w) => console.error(`[config] ${w}`));
   await mongoose.connect(config.mongoUri);
   await seedContent();
 

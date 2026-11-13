@@ -3,11 +3,17 @@ const config = require('../config');
 const { Order, Review } = require('../models');
 const { getContent } = require('../lib/content');
 const { priceCart, priceCommission } = require('../lib/pricing');
-const { newOrder, markPaymentPaid, customerView, completeWithoutPayment, markDraftsPlaced } = require('../lib/orders');
+const { newOrder, customerView, markDraftsPlaced } = require('../lib/orders');
 const { validate, z, str, email, phone, url } = require('../middleware/validate');
 const { limiters } = require('../middleware/security');
-const { safeEqual } = require('../lib/util');
-const razorpay = require('../services/razorpay');
+const { safeEqual, randomToken } = require('../lib/util');
+const money = require('../lib/money');
+const payments = require('../lib/payments');
+const emailCode = require('../lib/email-code');
+const { claimGuestOrders } = require('../lib/accounts');
+const { ProofUpload } = require('../models');
+const cloudinary = require('../services/cloudinary');
+const upi = require('../services/upi');
 const mail = require('../services/email');
 
 const router = express.Router();
@@ -26,7 +32,7 @@ const gift = z.object({
   isGift: z.boolean().default(false),
   note: str(400).optional().default(''),
   wrap: z.boolean().default(false),
-}).default({});
+}).prefault({});
 
 // Finds an order the requester is allowed to act on: its owner, or anyone holding the secret link token.
 async function findAccessibleOrder(req) {
@@ -38,46 +44,41 @@ async function findAccessibleOrder(req) {
   return null;
 }
 
-async function razorpayPayload(order, { kind, amount }) {
-  const rp = await razorpay.createOrder({
-    amount,
-    receipt: `${order.number}-${kind}-${order.payments.length + 1}`,
-    notes: { orderNumber: order.number, kind },
-  });
-  order.payments.push({ kind, amount, method: 'razorpay', status: 'created', razorpayOrderId: rp.id });
-  await order.save();
-  return {
-    provider: 'razorpay',
-    key: config.razorpay.keyId,
-    orderId: rp.id,
-    amount: rp.amount,
-    currency: 'INR',
-    name: config.brand.name,
-    description: `${order.number} · ${kind === 'deposit' ? 'Deposit' : kind === 'balance' ? 'Balance' : 'Order'}`,
-    prefill: { name: order.name, email: order.email, contact: order.phone || '' },
-  };
-}
-
-async function manualPayload(amount, order) {
+// What the customer needs to pay by UPI: amount, UPI ID, a deep link and a QR code.
+// The amount always comes from amountDue(), never from the browser.
+async function upiPayload(order) {
+  const due = money.amountDue(order);
+  if (!due) return null;
   const site = await getContent('site');
-  return {
-    provider: 'manual',
-    amount,
-    upiId: site.upiId,
-    upiName: site.upiName,
-    reference: order.number,
-    message: site.upiId
-      ? `Pay ₹${amount} to the UPI ID below with “${order.number}” in the note. June will confirm by email.`
-      : 'June will send payment details by email shortly.',
-  };
+  const upiId = upi.isValidUpiId(site.upiId) ? site.upiId : '';
+  const base = { provider: 'upi', kind: due.kind, amount: due.amount, reference: order.number, upiName: site.upiName || config.brand.name };
+  if (!upiId) return { ...base, upiId: '', message: 'June will send payment details by email shortly.' };
+  const uri = upi.upiUri({ upiId, upiName: base.upiName, amount: due.amount, note: order.number });
+  return { ...base, upiId, upiUri: uri, qrSvg: await upi.qrSvg(uri) };
 }
 
-async function paymentFor(order, kind, amount) {
-  if (razorpay.enabled()) return razorpayPayload(order, { kind, amount });
-  return manualPayload(amount, order);
-}
+// ---------- Checkout email code ----------
+router.post('/checkout/email-code', limiters.auth, validate(z.object({ email: email() })), async (req, res) => {
+  const result = await emailCode.sendCode(req.body.email, req.ip);
+  // Same answer for every address: nothing here says whether someone has an account.
+  res.json({ ok: true, sent: result.sent, disabled: Boolean(result.disabled), message: result.sent ? 'If that address can receive mail, a code is on its way.' : '' });
+});
 
-// Shop checkout: priced on the server, then handed to Razorpay.
+router.post('/checkout/email-code/verify', limiters.auth, validate(z.object({
+  email: email(),
+  code: z.string().trim().regex(/^\d{6}$/, 'The code is 6 digits.'),
+})), async (req, res) => {
+  const proof = await emailCode.verifyCode(req.body.email, req.body.code);
+  // Signed in with this same email: the code also proves the account's email.
+  if (req.user && req.user.email === req.body.email && !req.user.emailVerified) {
+    req.user.emailVerified = true;
+    await req.user.save();
+    await claimGuestOrders(req.user);
+  }
+  res.json({ ok: true, emailProof: proof });
+});
+
+// Shop checkout: priced on the server; the customer then pays by UPI and sends proof.
 router.post('/checkout', limiters.write, validate(z.object({
   items: z.array(z.object({
     productId: z.string().regex(/^[a-f0-9]{24}$/i, 'Invalid item.'),
@@ -94,9 +95,20 @@ router.post('/checkout', limiters.write, validate(z.object({
     recipientEmail: z.union([email(), z.literal('')]).optional().default(''),
     recipientName: str(80).optional().default(''),
     message: str(400).optional().default(''),
-  }).optional().default({}),
+  }).optional().prefault({}),
+  emailProof: z.string().max(2000).optional().default(''),
 })), async (req, res) => {
   const b = req.body;
+  // The email must be proven with a code, unless the signed-in account already proved it.
+  const accountProven = Boolean(req.user?.emailVerified && req.user.email === b.email);
+  const mode = emailCode.codeMode();
+  if (mode === 'unavailable' && !accountProven) {
+    return res.status(503).json({ error: 'Checkout is paused for a moment while we fix our email. Please message June on Instagram or WhatsApp to order.' });
+  }
+  const proven = accountProven || emailCode.checkProof(b.emailProof, b.email);
+  if (mode === 'required' && !proven) {
+    return res.status(400).json({ error: 'Please confirm your email with the code we send you.', field: 'email', needsEmailCode: true });
+  }
   const priced = await priceCart({ items: b.items, couponCode: b.couponCode, giftWrap: b.gift.wrap, giftCode: b.giftCode });
   if (priced.problems.length) return res.status(409).json({ error: priced.problems[0].message, problems: priced.problems });
   // Gift cards are emailed, so an address is only needed when there's a tote to post.
@@ -121,23 +133,18 @@ router.post('/checkout', limiters.write, validate(z.object({
     shippingFee: priced.shippingFee,
     giftWrapFee: priced.giftWrapFee,
     total: priced.total,
+    emailVerified: proven,
   });
   await order.save();
   await markDraftsPlaced(order.email);
 
   if (order.total === 0) {
-    await completeWithoutPayment(order);
+    await payments.completeWithoutPayment(order);
     return res.status(201).json({ number: order.number, token: order.accessToken, payment: { provider: 'none', paid: true } });
   }
 
-  const payment = await paymentFor(order, 'full', order.total);
-  if (payment.provider === 'manual') {
-    await Promise.all([
-      mail.send({ to: order.email, ...mail.templates.shopOrderPlaced(order), key: `order-placed:${order._id}`, kind: 'order' }),
-      mail.notifyAdmin(`New shop order ${order.number} (awaiting UPI)`, [`${order.name} · ₹${order.total}`], `/admin#orders/${order._id}`, { key: `admin-order:${order._id}`, replyTo: order.email }),
-    ]);
-  }
-  res.status(201).json({ number: order.number, token: order.accessToken, payment });
+  // No email yet: the customer gets one when they send payment proof, and June gets the alert then.
+  res.status(201).json({ number: order.number, token: order.accessToken, payment: await upiPayload(order) });
 });
 
 // Custom commission request. No payment yet — June quotes first.
@@ -228,7 +235,8 @@ router.get('/orders/:number', async (req, res) => {
     order.userId = req.user._id;
     await order.save();
   }
-  res.json({ order: customerView(order), payments: razorpay.enabled() ? 'razorpay' : 'manual' });
+  const view = customerView(order);
+  res.json({ order: view, payment: view.canPay ? await upiPayload(order) : null });
 });
 
 // Customer approves June's sketch and pays the deposit.
@@ -238,9 +246,10 @@ router.post('/orders/:number/approve', limiters.write, validate(z.object({
 })), async (req, res) => {
   const order = await findAccessibleOrder(req);
   if (!order) return res.status(404).json({ error: 'Order not found.' });
-  if (order.type !== 'commission' || order.status !== 'quoted') {
+  if (order.type !== 'commission' || order.status !== 'quoted' || order.amountPaid > 0) {
     return res.status(409).json({ error: 'This order isn’t waiting for approval.' });
   }
+  if (money.openPayment(order)) return res.status(409).json({ error: 'We’re already checking a payment for this order.' });
   if (req.body.couponCode && req.body.couponCode.toUpperCase() !== order.couponCode) {
     const priced = await priceCommission({ quote: order.subtotal, couponCode: req.body.couponCode, giftWrap: order.gift?.wrap });
     Object.assign(order, {
@@ -251,10 +260,13 @@ router.post('/orders/:number/approve', limiters.write, validate(z.object({
       depositAmount: priced.depositAmount,
     });
   }
-  order.commission.approvedAt = new Date();
+  if (!order.commission.approvedAt) {
+    order.commission.approvedAt = new Date();
+    order.history.push({ status: 'payment', note: 'You approved the sketch. Pay the deposit to begin.' });
+  }
   await order.save();
-  const payment = await paymentFor(order, 'deposit', order.depositAmount || order.total);
-  res.json({ order: customerView(order), payment });
+  await mail.notifyAdmin(`Sketch approved · ${order.number}`, [`${order.name} approved the sketch. The deposit of ₹${order.depositAmount} is next; you’ll get another email when they send payment proof.`], `/admin#orders/${order._id}`, { key: `admin-approved:${order._id}:${order.history.length}`, replyTo: order.email });
+  res.json({ order: customerView(order), payment: await upiPayload(order) });
 });
 
 router.post('/orders/:number/changes', limiters.write, validate(z.object({
@@ -263,10 +275,11 @@ router.post('/orders/:number/changes', limiters.write, validate(z.object({
 })), async (req, res) => {
   const order = await findAccessibleOrder(req);
   if (!order) return res.status(404).json({ error: 'Order not found.' });
-  if (order.type !== 'commission' || order.amountPaid > 0) {
+  if (order.type !== 'commission' || order.amountPaid > 0 || money.openPayment(order)) {
     return res.status(409).json({ error: 'Changes can be requested before the deposit is paid. Message June for anything else.' });
   }
   order.commission.changeRequests.push({ message: req.body.message });
+  order.commission.approvedAt = undefined; // a new sketch needs a new approval
   order.status = 'received';
   order.history.push({ status: 'received', note: 'You asked for a few changes. June is updating the sketch.' });
   await order.save();
@@ -277,10 +290,10 @@ router.post('/orders/:number/changes', limiters.write, validate(z.object({
 router.post('/orders/:number/pay', limiters.write, validate(z.object({ t: z.string().optional() })), async (req, res) => {
   const order = await findAccessibleOrder(req);
   if (!order) return res.status(404).json({ error: 'Order not found.' });
-  const view = customerView(order);
-  if (view.canPayBalance) return res.json({ payment: await paymentFor(order, 'balance', view.balanceDue) });
-  if (view.canPayShop) return res.json({ payment: await paymentFor(order, 'full', order.total) });
-  return res.status(409).json({ error: 'Nothing is due on this order right now.' });
+  if (money.openPayment(order)) return res.status(409).json({ error: 'We’re already checking a payment for this order.' });
+  const payment = await upiPayload(order);
+  if (!payment) return res.status(409).json({ error: 'Nothing is due on this order right now.' });
+  res.json({ payment });
 });
 
 router.post('/orders/:number/review', limiters.write, validate(z.object({
@@ -307,59 +320,86 @@ router.post('/orders/:number/review', limiters.write, validate(z.object({
   res.status(201).json({ ok: true });
 });
 
-// Browser callback after Razorpay checkout succeeds.
-router.post('/payments/verify', limiters.write, validate(z.object({
-  number: str(20),
-  t: z.string().optional(),
-  razorpay_order_id: str(60),
-  razorpay_payment_id: str(60),
-  razorpay_signature: str(200),
-})), async (req, res) => {
-  req.params.number = req.body.number;
+// ---------- Payment proof (UTR + screenshot) ----------
+
+// Step 1: a signed upload slot for this order's screenshot. The file name is chosen here, so the
+// browser can only upload into this order's private folder.
+router.post('/orders/:number/payment-proof/sign', limiters.upload, validate(z.object({ t: z.string().optional() })), async (req, res) => {
   const order = await findAccessibleOrder(req);
   if (!order) return res.status(404).json({ error: 'Order not found.' });
-  const valid = razorpay.verifyPaymentSignature({
-    orderId: req.body.razorpay_order_id,
-    paymentId: req.body.razorpay_payment_id,
-    signature: req.body.razorpay_signature,
-  });
-  const pending = order.payments.find((p) => p.razorpayOrderId === req.body.razorpay_order_id);
-  if (!valid || !pending) return res.status(400).json({ error: 'We couldn’t verify that payment. If money left your account, contact us and we’ll sort it out.' });
-  await markPaymentPaid(order, {
-    razorpayOrderId: pending.razorpayOrderId,
-    razorpayPaymentId: req.body.razorpay_payment_id,
-    amount: pending.amount,
-    kind: pending.kind,
-  });
-  res.json({ order: customerView(order) });
+  if (!money.amountDue(order) || money.openPayment(order)) return res.status(409).json({ error: 'Nothing is due on this order right now.' });
+  if ((await ProofUpload.countDocuments({ orderId: order._id, createdAt: { $gte: new Date(Date.now() - 60 * 60 * 1000) } })) >= 15) {
+    return res.status(429).json({ error: 'Too many uploads for this order. Please try again in an hour.' });
+  }
+  if (config.features.cloudinary) {
+    const publicId = `artorabyjune/payments/${order.number}/${randomToken(12)}`;
+    await ProofUpload.create({ publicId, provider: 'cloudinary', orderId: order._id });
+    return res.json(cloudinary.signPrivateUpload(publicId));
+  }
+  if (config.isProd && !process.env.ALLOW_LOCAL_UPLOADS) {
+    return res.status(503).json({ error: 'Screenshot uploads aren’t set up yet. Please message June on WhatsApp with your payment screenshot.' });
+  }
+  const publicId = `${order.number}-${randomToken(12)}`;
+  await ProofUpload.create({ publicId, provider: 'local', orderId: order._id });
+  res.json({ provider: 'local', publicId });
+});
+
+const SIGNATURES = [
+  { ext: 'jpg', test: (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
+  { ext: 'png', test: (b) => b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47 },
+  { ext: 'webp', test: (b) => b.slice(0, 4).toString() === 'RIFF' && b.slice(8, 12).toString() === 'WEBP' },
+];
+
+// Step 2 (local storage only, i.e. development): the file goes to a private folder that is never
+// served publicly; only the admin proof route reads it.
+router.post('/orders/:number/payment-proof/local', limiters.upload, express.json({ limit: '6mb' }), async (req, res) => {
+  if (config.features.cloudinary || (config.isProd && !process.env.ALLOW_LOCAL_UPLOADS)) return res.status(404).json({ error: 'Not found.' });
+  const order = await findAccessibleOrder(req);
+  if (!order) return res.status(404).json({ error: 'Order not found.' });
+  const publicId = String(req.body?.publicId || '');
+  const upload = await ProofUpload.findOne({ publicId, orderId: order._id, provider: 'local', attachedTo: { $exists: false } });
+  if (!upload) return res.status(400).json({ error: 'Please upload the screenshot again.' });
+  const match = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(req.body?.data || ''));
+  if (!match) return res.status(400).json({ error: 'Please upload a JPG, PNG or WebP image.' });
+  const buffer = Buffer.from(match[2], 'base64');
+  if (buffer.length > 4 * 1024 * 1024) return res.status(413).json({ error: 'That image is too large (max 4 MB).' });
+  if (!SIGNATURES.some((sig) => sig.test(buffer))) return res.status(400).json({ error: 'That file doesn’t look like an image.' });
+  await require('../lib/proof-files').saveLocal(publicId, buffer);
+  res.status(201).json({ ok: true, publicId });
+});
+
+// Step 3: the customer sends the UTR with the uploaded screenshot.
+router.post('/orders/:number/payment-proof', limiters.write, validate(z.object({
+  t: z.string().optional(),
+  kind: z.enum(['full', 'deposit', 'balance']),
+  utr: z.string().trim().max(40),
+  proof: z.object({
+    publicId: z.string().trim().min(1).max(200),
+    version: z.union([z.string(), z.number()]).optional(),
+    signature: z.string().trim().max(128).optional(),
+  }),
+})), async (req, res) => {
+  const order = await findAccessibleOrder(req);
+  if (!order) return res.status(404).json({ error: 'Order not found.' });
+  const { proof } = req.body;
+  let provider = 'local';
+  if (config.features.cloudinary) {
+    provider = 'cloudinary';
+    if (!proof.publicId.startsWith(`artorabyjune/payments/${order.number}/`)) return res.status(400).json({ error: 'Please upload the screenshot again.', field: 'screenshot' });
+    if (!cloudinary.verifyUploadResponse({ publicId: proof.publicId, version: proof.version, signature: proof.signature })) {
+      return res.status(400).json({ error: 'We couldn’t confirm that screenshot upload. Please upload it again.', field: 'screenshot' });
+    }
+  } else if (!(await require('../lib/proof-files').existsLocal(proof.publicId))) {
+    return res.status(400).json({ error: 'Please upload the screenshot again.', field: 'screenshot' });
+  }
+  try {
+    await payments.submitProof(order, { kind: req.body.kind, utr: req.body.utr, publicId: proof.publicId, provider });
+  } catch (error) {
+    if (error.expose) return res.status(error.status || 400).json({ error: error.message, field: error.field });
+    throw error;
+  }
+  const fresh = await Order.findById(order._id);
+  res.status(201).json({ order: customerView(fresh) });
 });
 
 module.exports = router;
-
-// Razorpay webhook: backup confirmation if the customer closes the tab mid-payment.
-// Mounted separately with a raw body parser so the signature can be checked.
-async function webhookHandler(req, res) {
-  const signature = req.get('x-razorpay-signature');
-  if (!razorpay.verifyWebhookSignature(req.body, signature)) return res.status(400).json({ error: 'Invalid signature.' });
-  let event;
-  try { event = JSON.parse(req.body.toString('utf8')); } catch { return res.status(400).end(); }
-  if (event.event === 'payment.captured' || event.event === 'order.paid') {
-    const entity = event.payload?.payment?.entity;
-    const rpOrderId = entity?.order_id;
-    if (rpOrderId) {
-      const order = await Order.findOne({ 'payments.razorpayOrderId': rpOrderId });
-      const pending = order?.payments.find((p) => p.razorpayOrderId === rpOrderId);
-      if (order && pending) {
-        await markPaymentPaid(order, {
-          razorpayOrderId: rpOrderId,
-          razorpayPaymentId: entity.id,
-          amount: pending.amount,
-          kind: pending.kind,
-        });
-      }
-    }
-  }
-  res.json({ ok: true });
-}
-
-module.exports.webhookHandler = webhookHandler;

@@ -25,6 +25,8 @@ const ProductSchema = new mongoose.Schema({
   // Bundle: when this and `bundleWith` are both in the bag, `bundleDiscount` (₹) comes off per pair.
   bundleWith: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
   bundleDiscount: { type: Number, default: 0, min: 0 },
+  // Orders whose stock was already taken off ("order:<id>"), so a retried approval never takes it twice.
+  stockLedger: { type: [String], default: [], select: false },
 }, { timestamps: true });
 
 ProductSchema.methods.toPublic = function toPublic() {

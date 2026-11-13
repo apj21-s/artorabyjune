@@ -296,3 +296,25 @@ body.is-admin{ background:#ECE4D2 url("/assets/textures/canvas.webp") 0 0 / 240p
 @media (max-width:640px){ .crop-panel{ padding:16px; gap:12px; } .crop-zoom{ flex:1 1 100%; } .crop-actions .btn-primary{ flex:1 1 100%; } }
 .crop-panel > *{ min-width:0; }
 .crop-zoom input{ min-width:0; }
+
+/* ---------- UPI payments ---------- */
+.todo-list li.is-urgent strong{ color:var(--cherry-800); }
+.todo-list li.is-urgent{ border-left:3px solid var(--cherry); padding-left:12px; }
+.age-old{ color:var(--cherry-800); font-weight:600; }
+.pay-table small.warn, .num small.warn, td small.warn{ display:block; color:var(--ochre-800); }
+.pay-rows{ display:grid; gap:8px; margin:6px 0; }
+.pay-row{ display:grid; grid-template-columns:1fr auto; gap:2px 10px; align-items:center; padding:8px 0; border-top:1px solid var(--line); }
+.pay-row small{ grid-column:1; color:var(--text-muted); }
+.pay-row > a{ grid-row:1 / span 2; grid-column:2; }
+.pay-row.is-rejected, .pay-row.is-created, .pay-row.is-failed{ opacity:.6; }
+.pay-row em.warn{ color:var(--ochre-800); font-style:normal; }
+.review-grid{ display:grid; grid-template-columns:minmax(0, 1.1fr) minmax(0, .9fr); gap:20px; align-items:start; }
+.proof-pane{ position:sticky; top:16px; }
+.proof-tools{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+.proof-viewer{ max-height:72vh; overflow:auto; border-radius:8px; background:repeating-conic-gradient(#efe9dc 0 25%, #f8f4ec 0 50%) 0 0 / 18px 18px; display:grid; place-items:center; padding:10px; }
+.proof-viewer img{ max-width:100%; transform-origin:center top; transition:transform .2s ease; cursor:zoom-in; }
+.proof-viewer.is-zoomed{ place-items:start center; }
+.proof-viewer.is-zoomed img{ cursor:zoom-out; }
+.review-facts dd{ text-align:right; }
+.reason-list{ display:grid; gap:6px; }
+@media (max-width:900px){ .review-grid{ grid-template-columns:minmax(0, 1fr); } .proof-pane{ position:static; } }

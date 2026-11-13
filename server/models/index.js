@@ -10,5 +10,8 @@ module.exports = {
   GiftCard: require('./GiftCard'),
   CartDraft: require('./CartDraft'),
   EmailLog: require('./EmailLog'),
+  PaymentRef: require('./PaymentRef'),
+  ProofUpload: require('./ProofUpload'),
+  EmailCode: require('./EmailCode'),
   ...require('./Counter'),
 };

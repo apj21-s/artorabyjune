@@ -47,16 +47,15 @@ router.get('/bootstrap', async (_req, res) => {
       giftWrapFee: site.giftWrapFee,
       dispatchDays: site.dispatchDays,
       deliveryDays: site.deliveryDays,
-      upiId: config.features.razorpay ? '' : site.upiId,
+      upiId: site.upiId,
       upiName: site.upiName,
     },
     tiers,
     gifting,
     reviews: await reviewSummary(),
     features: {
-      payments: config.features.razorpay ? 'razorpay' : 'manual',
+      payments: 'upi',
       google: config.features.google,
-      razorpayKey: config.features.razorpay ? config.razorpay.keyId : '',
     },
   });
 });

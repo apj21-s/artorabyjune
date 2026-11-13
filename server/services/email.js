@@ -192,7 +192,7 @@ async function deliver(log) {
     log.messageId = info?.messageId || '';
     log.sentAt = new Date();
     log.lastError = undefined;
-    if (['password-reset', 'verify-email'].includes(log.kind)) { log.html = undefined; log.text = undefined; }
+    if (['password-reset', 'verify-email', 'checkout-code'].includes(log.kind)) { log.html = undefined; log.text = undefined; }
     await log.save();
     return { ok: true, id: log._id };
   } catch (error) {
@@ -325,31 +325,93 @@ const templates = {
   },
   paymentReceived(order, payment) {
     const kindLabel = { deposit: 'Deposit', balance: 'Balance', full: 'Payment' }[payment.kind] || 'Payment';
+    const due = Math.max(0, (order.total || 0) - (order.amountPaid || 0));
+    const short = payment.expectedAmount && payment.amount < payment.expectedAmount;
     return {
-      subject: `${kindLabel} received · ${order.number}`,
+      subject: `${kindLabel} confirmed · ${order.number}`,
       html: layout({
         preheader: `${inr(payment.amount)} received with thanks.`,
-        title: `${kindLabel} received — thank you.`,
+        title: `${kindLabel} confirmed. Thank you.`,
         lines: [
-          `We received ${inr(payment.amount)} for order ${order.number}.`,
-          order.type === 'commission' && payment.kind === 'deposit' ? 'June will begin painting your memory now. You’ll get an update at every stage.' : '',
-          order.type === 'shop' ? 'June will pack your tote with care and send tracking details once it ships.' : '',
-          order.balanceDue > 0 ? `Balance remaining: ${inr(order.balanceDue)}.` : '',
+          `June has matched ${inr(payment.amount)} with her bank for order ${order.number}.`,
+          short ? `That’s ${inr(payment.expectedAmount - payment.amount)} less than was due, so ${inr(due)} is still to pay. You can pay it from your order page.` : '',
+          !short && order.type === 'commission' && payment.kind === 'deposit' ? 'June will begin painting your memory now. You’ll get an update at every stage.' : '',
+          !short && order.type === 'shop' ? 'June will pack your tote with care and send tracking details once it ships.' : '',
+          !short && order.type === 'commission' && due > 0 && payment.kind !== 'deposit' ? `Balance remaining: ${inr(due)}.` : '',
         ].filter(Boolean),
         rawHtml: orderSummaryHtml(order),
-        cta: { href: orderLink(order), label: 'Track your order' },
+        cta: { href: orderLink(order), label: short ? 'Pay the rest' : 'Track your order' },
+      }),
+    };
+  },
+  paymentSubmitted(order, payment) {
+    return {
+      subject: `Payment received for checking · ${order.number}`,
+      html: layout({
+        preheader: 'June will confirm it shortly.',
+        title: 'Got it. June is checking your payment.',
+        lines: [
+          `Hi ${order.name || 'there'}, thank you. We’ve received your UPI payment details for ${order.number}: ${inr(payment.expectedAmount)}, UTR ending ${String(payment.utr || '').slice(-4)}.`,
+          'June matches every payment with her bank by hand, usually within a few hours. Your order is confirmed once she has, and you’ll get an email.',
+        ],
+        rawHtml: orderSummaryHtml(order),
+        cta: { href: orderLink(order), label: 'View your order' },
+      }),
+    };
+  },
+  paymentRejected(order, payment) {
+    return {
+      subject: `Please check your payment · ${order.number}`,
+      html: layout({
+        preheader: 'June couldn’t match your payment yet.',
+        title: 'June couldn’t match your payment yet.',
+        lines: [
+          `Hi ${order.name || 'there'}, June checked the payment details you sent for ${order.number} (UTR ending ${String(payment.utr || '').slice(-4)}).`,
+          `Her note: “${payment.rejectionReason}”`,
+          'Your order is still saved. Open it to send a clearer screenshot or the right UTR. If money left your account, reply to this email and June will sort it out.',
+        ],
+        cta: { href: orderLink(order), label: 'Send it again' },
+      }),
+    };
+  },
+  refundRecorded(order, refund) {
+    return {
+      subject: `Refund of ${inr(refund.amount)} · ${order.number}`,
+      html: layout({
+        preheader: 'Your refund is on its way.',
+        title: 'Your refund is on its way.',
+        lines: [
+          `Hi ${order.name || 'there'}, June has sent back ${inr(refund.amount)} for ${order.number}.`,
+          refund.note || '',
+          'UPI refunds usually reach your account within a day. Reply to this email if you don’t see it.',
+        ].filter(Boolean),
+        cta: { href: orderLink(order), label: 'View your order' },
+      }),
+    };
+  },
+  checkoutCode(code) {
+    return {
+      subject: `${code} is your Artora by June code`,
+      html: layout({
+        preheader: `Your code is ${code}`,
+        title: 'Your checkout code',
+        lines: ['Enter this code on the checkout page to confirm your email. It works for 10 minutes.'],
+        rawHtml: `<p style="margin:6px 0 16px;font-family:'IBM Plex Mono',Menlo,monospace;font-size:32px;letter-spacing:8px;color:${C.ink}"><strong>${escapeHtml(code)}</strong></p><p style="margin:0;font-size:13px;color:${C.soft}">Didn’t ask for this? You can ignore it; nobody can use your email without the code.</p>`,
       }),
     };
   },
   shopOrderPlaced(order) {
     return {
-      subject: `Order confirmed · ${order.number}`,
+      subject: `Your order is saved · ${order.number}`,
       html: layout({
-        preheader: 'Your tote is reserved.',
-        title: 'Your order is confirmed.',
-        lines: [`Hi ${order.name || 'there'}, thank you for your order ${order.number}.`],
+        preheader: 'Pay by UPI from your order page to confirm it.',
+        title: 'Your order is saved.',
+        lines: [
+          `Hi ${order.name || 'there'}, thank you for your order ${order.number}.`,
+          `To confirm it, pay ${inr(order.total)} by UPI from your order page and send the payment details. June confirms every payment by email.`,
+        ],
         rawHtml: orderSummaryHtml(order),
-        cta: { href: orderLink(order), label: 'Track your order' },
+        cta: { href: orderLink(order), label: 'Pay and track your order' },
       }),
     };
   },

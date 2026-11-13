@@ -813,3 +813,110 @@ body:not(.is-admin) .product-media:has(img + img)::after{
 /* Account: the tab panels are <section>s but not page sections; no big section padding or seam */
 body:not(.is-admin) .account-panels > .tab-panel{ padding:0; }
 body:not(.is-admin) .account-panels > .tab-panel::before{ content:none; }
+
+/* ================= UPI payment (checkout step 2, order page) ================= */
+/* Payment state is a typed word on the order, like a rubber stamp, not a pill. */
+body:not(.is-admin) .status-chip{ padding:0; border-radius:0; background:none !important; gap:7px; font:500 .7rem/1.2 'IBM Plex Mono', monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-soft); }
+body:not(.is-admin) .status-chip::before{ content:""; width:9px; height:9px; flex:none; border-radius:46% 54% 52% 48% / 52% 46% 54% 48%; background:var(--blue); }
+body:not(.is-admin) .status-chip.is-paid::before{ background:var(--sage); }
+body:not(.is-admin) .status-chip.is-due::before{ background:var(--ochre); }
+body:not(.is-admin) .status-chip.is-cancel::before{ background:var(--cherry); }
+
+/* Checkout steps: paint-dab numbers on a stitched thread */
+/* Checkout steps: paint-dab numbers on a stitched thread, under the heading */
+.co-steps{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:16px 0 0; padding:0; list-style:none; }
+.co-steps li{ display:flex; align-items:center; gap:8px; font:500 .74rem/1 'IBM Plex Mono', monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--text-faint); }
+.co-steps li + li::before{ content:""; width:clamp(18px, 5vw, 48px); height:1.4px; background:var(--seam); margin-right:2px; }
+.co-dab{ display:grid; place-items:center; width:26px; height:26px; flex:none; border-radius:46% 54% 52% 48% / 52% 46% 54% 48%; border:1.5px dashed rgba(34,29,25,.3); font:600 .74rem/1 'IBM Plex Mono', monospace; }
+.co-steps li.is-current{ color:var(--ink); }
+.co-steps li.is-current .co-dab{ border:0; background:var(--ink); color:#fff; }
+.co-steps li.is-done .co-dab{ border:0; background:var(--cherry); color:#fff; }
+@media (max-width:420px){ .co-steps{ gap:6px; } .co-steps li{ font-size:.62rem; gap:5px; letter-spacing:.06em; } .co-dab{ width:22px; height:22px; } }
+
+/* Email code under the email field */
+.email-code{ margin:-2px 0 14px; display:grid; gap:8px; justify-items:start; }
+.email-code-why, .email-code-hint{ margin:0; font-size:.86rem; color:var(--text-muted); }
+.email-code .btn-text{ margin:0; padding:2px 0; font-size:1.15rem; }
+.email-code-row{ display:flex; align-items:flex-end; gap:10px; width:100%; max-width:380px; }
+.email-code-row .field{ flex:1; margin:0; }
+.email-code-row input{ font:600 1.15rem/1 'IBM Plex Mono', monospace; letter-spacing:.3em; }
+.email-ok{ margin:0; font-size:.9rem; color:var(--sage-800); }
+.email-ok span{ font-weight:700; }
+.checkout-form input[readonly]{ background:transparent; border-style:dashed; }
+.link-copy{ background:none; border:0; padding:0 2px; cursor:pointer; font:500 .8rem/1.4 'IBM Plex Mono', monospace; color:var(--blue); text-decoration:underline; text-underline-offset:3px; }
+.link-copy:hover{ color:var(--cherry); }
+
+/* The pay step: a printed payment slip beside the "tell June" letter */
+.co-pay, .co-done{ max-width:980px; margin:0 auto; }
+.co-saved{ text-align:center; color:var(--text-muted); margin:0 0 6px; }
+.co-saved .order-no{ display:inline; margin:0 4px; }
+.upi-heading{ font-size:clamp(1.3rem, 2.2vw, 1.7rem); margin-bottom:22px; }
+.upi-grid{ display:grid; grid-template-columns:minmax(0, 380px) minmax(0, 1fr); gap:clamp(24px, 4vw, 56px); align-items:start; padding-top:18px; }
+.upi-slip{ margin:0; max-width:380px; width:100%; text-align:center; transform:rotate(-.8deg); }
+.upi-amount{ margin:4px 0 12px; font:700 2.4rem/1 'Space Grotesk', sans-serif; color:var(--ink); }
+.upi-amount small{ display:block; margin-bottom:6px; font:500 .68rem/1 'IBM Plex Mono', monospace; letter-spacing:.14em; text-transform:uppercase; color:var(--text-muted); }
+.upi-qr{ display:block; width:196px; height:196px; margin:0 auto; image-rendering:pixelated; }
+.upi-scan{ margin:8px 0 14px; font:700 1.15rem/1.2 'Caveat', cursive; color:var(--cherry); }
+.upi-lines{ display:grid; grid-template-columns:auto 1fr; gap:6px 14px; margin:0; padding-top:12px; border-top:1px dashed rgba(34,29,25,.3); text-align:left; }
+.upi-lines dt{ font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; color:var(--text-muted); line-height:1.7; }
+.upi-lines dd{ margin:0; word-break:break-all; }
+.upi-id{ font-weight:600; }
+.upi-apps{ display:grid; gap:10px; margin-top:16px; padding-top:14px; border-top:1px dashed rgba(34,29,25,.3); font-family:Inter, system-ui, sans-serif; }
+.upi-apps-or{ margin:0; font-size:.86rem; color:var(--text-muted); }
+.upi-apps-or a{ color:var(--ink); font-weight:600; text-decoration:underline; text-decoration-color:rgba(193,68,60,.5); text-underline-offset:3px; }
+.upi-app-miss{ margin:0; font-size:.84rem; color:var(--cherry-800); text-align:left; }
+.upi-proof{ padding:clamp(22px, 3vw, 34px); display:grid; gap:4px; }
+.upi-proof h3{ font-size:1.3rem; margin-bottom:8px; }
+.upi-nudge{ margin:0 0 10px; padding-left:12px; border-left:3px solid var(--sage); font-size:.9rem; }
+.upi-proof input[name="utr"]{ font:600 1.15rem/1 'IBM Plex Mono', monospace; letter-spacing:.12em; }
+.upi-ocr-note{ display:block; margin-top:6px; font-size:.84rem; color:var(--text-muted); }
+.upi-ocr-pick{ display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:6px; }
+.field-label{ display:block; margin-bottom:6px; font-weight:600; font-size:.9rem; }
+/* The screenshot picker is a control, so it gets an outline: a dashed polaroid slot. */
+.upi-shot{ position:relative; display:grid; place-items:center; min-height:132px; padding:14px; border:1.5px dashed rgba(34,29,25,.35); border-radius:4px; background:#fffdf8; cursor:pointer; text-align:center; }
+.upi-shot:focus-within{ outline:2px solid var(--focus); outline-offset:2px; }
+.upi-shot input{ position:absolute; inset:0; opacity:0; cursor:pointer; }
+.upi-shot-empty{ font:700 1.2rem/1.3 'Caveat', cursive; color:var(--ink-soft); max-width:26ch; }
+.upi-shot img{ max-height:240px; max-width:100%; border-radius:2px; box-shadow:0 8px 18px -10px rgba(59,47,34,.5); }
+.upi-shot-status{ display:block; margin-top:6px; font-size:.84rem; color:var(--sage-800); min-height:1em; }
+.upi-help{ margin:8px 0 14px; padding-top:12px; position:relative; font-size:.88rem; }
+.upi-help::before{ content:""; position:absolute; top:0; left:0; right:0; height:1.4px; background:var(--seam); }
+.upi-help summary{ cursor:pointer; font-weight:600; }
+.upi-help ul{ margin:10px 0 0; padding-left:18px; display:grid; gap:6px; color:var(--ink-soft); }
+.upi-truth{ margin:14px 0 0 !important; }
+@media (max-width:820px){ .upi-grid{ grid-template-columns:minmax(0, 1fr); } .upi-slip{ justify-self:center; } }
+
+/* Step 3 and the order page states */
+.co-done{ display:grid; justify-items:center; text-align:center; gap:10px; padding:10px 0 30px; }
+.co-done h2{ font-size:clamp(1.6rem, 3vw, 2.2rem); }
+.co-done > p{ max-width:56ch; color:var(--ink-soft); }
+.o-checking .checking-note{ font:500 .92rem/1.6 'IBM Plex Mono', monospace; color:var(--ink); }
+.rejection-note{ margin-bottom:10px; }
+.rejection-note h2{ font-size:clamp(1.3rem, 2.2vw, 1.7rem); margin-bottom:12px; }
+.rejection-note .quote-note{ background:none; padding:0 0 0 14px; border-left:3px solid var(--cherry); font:700 1.35rem/1.4 'Caveat', cursive; color:#1f2a66; }
+.rejection-note .quote-note .accent{ color:var(--cherry); }
+.receipt-save{ margin:16px 0 0; }
+
+/* Printed receipt: only .print-receipt (built by order.js on "Save receipt"), on plain white A4. */
+.print-receipt{ display:none; }
+@media print{
+  @page{ size:A4; margin:16mm; }
+  html, body, body:not(.is-admin){ background:#fff !important; }
+  body::before, body::after{ display:none !important; }
+  body > :not(.print-receipt){ display:none !important; }
+  .print-receipt{ display:block; color:#1d1915; font:10.5pt/1.5 'IBM Plex Mono', ui-monospace, monospace; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .pr-head{ display:flex; justify-content:space-between; align-items:flex-end; padding-bottom:10pt; border-bottom:1.5pt solid #1d1915; }
+  .pr-brand{ font:700 20pt/1 'Space Grotesk', sans-serif; }
+  .pr-sub{ margin-top:4pt; font-size:9pt; color:#6b6158; }
+  .pr-title{ text-align:right; text-transform:uppercase; letter-spacing:.14em; font-size:9pt; }
+  .pr-no{ margin-top:4pt; font-size:13pt; font-weight:700; letter-spacing:.06em; }
+  .pr-meta{ display:grid; grid-template-columns:repeat(2, 1fr); gap:12pt 24pt; margin:16pt 0; }
+  .pr-meta dt{ text-transform:uppercase; letter-spacing:.12em; font-size:8pt; color:#6b6158; }
+  .pr-meta dd{ margin:2pt 0 0; }
+  .pr-lines{ width:100%; border-collapse:collapse; }
+  .pr-lines th, .pr-lines td{ padding:6pt 0; border-bottom:.75pt dashed #b8ada0; font-weight:400; text-align:left; }
+  .pr-lines td{ text-align:right; white-space:nowrap; }
+  .pr-lines .is-total :is(th, td){ font-weight:700; border-bottom:1.5pt solid #1d1915; }
+  .pr-note{ margin-top:14pt; padding:8pt 0; border-top:1pt solid #b8ada0; border-bottom:1pt solid #b8ada0; font-size:9.5pt; }
+  .pr-foot{ margin-top:22pt; font-size:8.5pt; color:#6b6158; }
+}

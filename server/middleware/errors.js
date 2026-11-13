@@ -13,7 +13,7 @@ function errorHandler(err, req, res, _next) {
   const status = err.status || err.statusCode || 500;
   if (status >= 500) console.error('[error]', req.method, req.originalUrl, err);
   const message = err.expose || status < 500 ? err.message : 'Something went wrong on our side. Please try again.';
-  if (req.path.startsWith('/api/')) return res.status(status).json({ error: message });
+  if (req.path.startsWith('/api/')) return res.status(status).json({ error: message, ...(err.expose && err.field ? { field: err.field } : {}) });
   res.status(status).send(config.isProd ? 'Something went wrong.' : message);
 }
 

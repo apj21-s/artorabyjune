@@ -45,6 +45,7 @@ function startReminders() {
   if (config.isTest) return null;
   const timer = setInterval(() => {
     runCartReminders().catch((e) => console.error('[reminders]', e.message));
+    require('./maintenance').runPaymentMaintenance().catch((e) => console.error('[payments]', e.message));
     mail.processOutbox().catch((e) => console.error('[outbox]', e.message));
   }, 30 * 60 * 1000);
   timer.unref();

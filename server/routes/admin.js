@@ -6,7 +6,12 @@ const { requireAdmin } = require('../middleware/auth');
 const { validate, z, str, url, email } = require('../middleware/validate');
 const { getContent, setContent, EDITABLE_KEYS, DEFAULTS } = require('../lib/content');
 const { priceCommission, priceCart, PricingError } = require('../lib/pricing');
-const { setStatus, markPaymentPaid, customerView, pushHistory, newOrder } = require('../lib/orders');
+const { setStatus, customerView, pushHistory, newOrder } = require('../lib/orders');
+const money = require('../lib/money');
+const payments = require('../lib/payments');
+const proofFiles = require('../lib/proof-files');
+const cloudinary = require('../services/cloudinary');
+const upi = require('../services/upi');
 const { STAGES, flowFor } = require('../lib/stages');
 const { slugify, escapeRegex } = require('../lib/util');
 const mail = require('../services/email');
@@ -20,6 +25,22 @@ router.param('id', (req, res, next, id) => {
   if (!objectId.safeParse(id).success) return res.status(404).json({ error: 'Not found.' });
   next();
 });
+router.param('pid', (req, res, next, id) => {
+  if (!objectId.safeParse(id).success) return res.status(404).json({ error: 'Not found.' });
+  next();
+});
+
+// Errors thrown on purpose by the payment workflow carry their own status and message.
+const handled = (fn) => async (req, res) => {
+  try {
+    await fn(req, res);
+  } catch (error) {
+    if (error.expose) return res.status(error.status || 400).json({ error: error.message });
+    throw error;
+  }
+};
+
+const STALE_APPROVAL_MS = 2 * 60 * 1000;
 
 // ---------- Overview ----------
 router.get('/stats', async (_req, res) => {
@@ -34,8 +55,26 @@ router.get('/stats', async (_req, res) => {
     Message.countDocuments({ handled: false }),
     Review.countDocuments({ approved: false }),
     Order.find().sort({ createdAt: -1 }).limit(6).select('number type name status total amountPaid createdAt paymentStatus').lean(),
-    Order.countDocuments({ type: 'shop', status: 'received', paymentStatus: 'unpaid' }),
+    Order.countDocuments({
+      status: { $ne: 'cancelled' },
+      payments: { $not: { $elemMatch: { status: { $in: ['pending', 'approving'] } } } },
+      $or: [
+        { type: 'shop', paymentStatus: { $in: ['unpaid', 'partially_paid'] }, total: { $gt: 0 } },
+        { type: 'commission', 'commission.approvedAt': { $exists: true }, paymentStatus: { $in: ['unpaid', 'partially_paid', 'deposit_paid'] }, total: { $gt: 0 } },
+      ],
+    }),
   ]);
+  const [checking, interrupted, refundCandidates] = await Promise.all([
+    Order.aggregate([
+      { $unwind: '$payments' },
+      { $match: { 'payments.status': 'pending' } },
+      { $group: { _id: null, count: { $sum: 1 }, oldest: { $min: '$payments.submittedAt' } } },
+    ]),
+    Order.countDocuments({ payments: { $elemMatch: { status: 'approving', approvalStartedAt: { $lte: new Date(Date.now() - STALE_APPROVAL_MS) } } } }),
+    Order.find({ $or: [{ paymentStatus: 'overpaid' }, { status: 'cancelled', amountPaid: { $gt: 0 } }] }).select('status amountPaid total payments refunds type depositAmount').lean(),
+  ]);
+  const refundsDue = refundCandidates.filter((o) => money.refundDue(o) > 0);
+  const site = await getContent('site');
   const launch = await getContent('launch');
   res.json({
     revenue30: revenue30[0]?.sum || 0,
@@ -48,9 +87,15 @@ router.get('/stats', async (_req, res) => {
     unreadMessages,
     pendingReviews,
     awaitingPayment,
+    paymentsToCheck: checking[0]?.count || 0,
+    oldestCheckAt: checking[0]?.oldest || null,
+    interruptedApprovals: interrupted,
+    refundsDue: refundsDue.length,
+    refundsDueAmount: refundsDue.reduce((n, o) => n + money.refundDue(o), 0),
+    checkoutPaused: require('../lib/email-code').codeMode() === 'unavailable',
     recent: recent.map((o) => ({ ...o, statusLabel: STAGES[o.status]?.label || o.status })),
     checklist: [
-      { key: 'payments', label: 'Online payments (Razorpay) connected', done: config.features.razorpay, hint: 'Until then customers pay your UPI ID and you confirm it here. Set up: handover guide, Step 10.' },
+      { key: 'payments', label: 'Your UPI ID added for payments', done: upi.isValidUpiId(site.upiId), hint: 'Customers pay this UPI ID and send you the UTR and a screenshot. Add it in Site content → Money & delivery.' },
       { key: 'email', label: `Emails connected${config.emailProvider ? ` (${config.emailProvider === 'gmail' ? 'Gmail' : config.emailProvider})` : ''}`, done: config.features.email, hint: 'Until then no emails go out (enquiries are still saved in Messages). Set up: handover guide, "Emails: Gmail" — free, no domain needed.' },
       { key: 'uploads', label: 'Photo storage (Cloudinary) connected', done: config.features.cloudinary, hint: 'Needed to upload product photos and sketches. Set up: handover guide, Step 6.' },
       { key: 'pricingReviewed', label: 'Commission prices and turnaround reviewed', done: Boolean(launch.pricingReviewed), manual: true },
@@ -66,6 +111,8 @@ router.get('/orders', async (req, res) => {
   if (['shop', 'commission'].includes(req.query.type)) filter.type = req.query.type;
   if (req.query.status && STAGES[req.query.status]) filter.status = req.query.status;
   if (req.query.open === '1') filter.status = { $nin: ['delivered', 'cancelled'] };
+  if (req.query.payment === 'check') filter['payments.status'] = 'pending';
+  if (req.query.payment === 'refund') filter.$and = [{ $or: [{ paymentStatus: 'overpaid' }, { status: 'cancelled', amountPaid: { $gt: 0 } }] }];
   if (req.query.q) {
     const q = new RegExp(escapeRegex(String(req.query.q).slice(0, 60)), 'i');
     filter.$or = [{ number: q }, { name: q }, { email: q }, { phone: q }];
@@ -113,7 +160,10 @@ router.get('/orders/:id', async (req, res) => {
       id: order._id,
       phone: order.phone,
       token: order.accessToken,
-      payments: order.payments,
+      payments: order.payments.map((p) => ({ ...p.toObject(), hasProof: Boolean(p.proofId), proofId: undefined, interrupted: p.status === 'approving' && p.approvalStartedAt && Date.now() - p.approvalStartedAt.getTime() > STALE_APPROVAL_MS })),
+      refunds: order.refunds,
+      refundDue: money.refundDue(order),
+      overpaidBy: money.overpaidBy(order),
       internalNotes: order.internalNotes || '',
       source: order.source || 'website',
       sourceHandle: order.sourceHandle || '',
@@ -152,6 +202,7 @@ router.post('/orders/:id/quote', validate(z.object({
   const order = await Order.findById(req.params.id);
   if (!order || order.type !== 'commission') return res.status(404).json({ error: 'Commission not found.' });
   if (order.amountPaid > 0) return res.status(409).json({ error: 'The deposit is already paid; the quote can’t change now.' });
+  if (money.openPayment(order)) return res.status(409).json({ error: 'A payment for this order is waiting for your check. Approve or reject it first.' });
   const priced = await priceCommission({ quote: req.body.price, couponCode: '', giftWrap: order.gift?.wrap });
   Object.assign(order, {
     subtotal: priced.subtotal,
@@ -164,6 +215,7 @@ router.post('/orders/:id/quote', validate(z.object({
   order.commission.quoteMessage = req.body.message;
   order.commission.sketchImage = req.body.sketchImage;
   order.commission.quotedAt = new Date();
+  order.commission.approvedAt = undefined; // a new price needs the customer's approval again
   order.status = 'quoted';
   pushHistory(order, 'quoted');
   await order.save();
@@ -175,12 +227,115 @@ router.post('/orders/:id/payments', validate(z.object({
   kind: z.enum(['full', 'deposit', 'balance']),
   amount: z.coerce.number().int().min(1).max(1_000_000),
   note: str(300).optional().default('Recorded manually'),
-})), async (req, res) => {
-  const order = await Order.findById(req.params.id);
-  if (!order) return res.status(404).json({ error: 'Order not found.' });
-  await markPaymentPaid(order, { kind: req.body.kind, amount: req.body.amount, method: 'manual', note: req.body.note });
+})), handled(async (req, res) => {
+  await payments.recordManualPayment(req.params.id, { kind: req.body.kind, amount: req.body.amount, note: req.body.note, admin: req.user.email });
   res.json({ ok: true });
+}));
+
+// ---------- UPI payment review ----------
+const bankCheck = z.object({
+  date: str(40).optional().default(''),
+  sender: str(120).optional().default(''),
+  utrMatched: z.boolean().optional().default(false),
+  amountConfirmed: z.boolean().optional().default(false),
+}).optional().prefault({});
+
+// The review queue: every payment with proof, oldest waiting first.
+router.get('/payments', async (req, res) => {
+  const status = ['pending', 'approving', 'paid', 'rejected'].includes(req.query.status) ? req.query.status : 'pending';
+  const kind = ['full', 'deposit', 'balance'].includes(req.query.kind) ? req.query.kind : '';
+  const match = { 'payments.status': status, 'payments.method': { $in: ['upi', 'manual'] } };
+  if (kind) match['payments.kind'] = kind;
+  const q = String(req.query.q || '').trim().slice(0, 60);
+  const pre = {};
+  if (q) {
+    const rx = new RegExp(escapeRegex(q), 'i');
+    pre.$or = [{ number: rx }, { name: rx }, { email: rx }, { 'payments.utr': rx }];
+  }
+  const rows = await Order.aggregate([
+    { $match: { ...pre, 'payments.status': status } },
+    { $unwind: '$payments' },
+    { $match: match },
+    ...(q ? [{ $match: { $or: [{ number: new RegExp(escapeRegex(q), 'i') }, { name: new RegExp(escapeRegex(q), 'i') }, { email: new RegExp(escapeRegex(q), 'i') }, { 'payments.utr': new RegExp(escapeRegex(q), 'i') }] } }] : []),
+    { $sort: status === 'pending' || status === 'approving' ? { 'payments.submittedAt': 1 } : { 'payments.reviewedAt': -1 } },
+    { $limit: 200 },
+    { $project: { number: 1, name: 1, email: 1, type: 1, total: 1, amountPaid: 1, status: 1, items: 1, payment: '$payments' } },
+  ]);
+  const productIds = [...new Set(rows.flatMap((r) => (r.items || []).map((i) => String(i.productId))).filter(Boolean))];
+  const stock = new Map((await Product.find({ _id: { $in: productIds } }).select('stock').lean()).map((p) => [String(p._id), p.stock]));
+  res.json({
+    items: rows.map((r) => {
+      const p = r.payment;
+      const lowStock = r.type === 'shop' && p.status === 'pending' && (r.items || []).some((i) => i.kind !== 'giftcard' && (stock.get(String(i.productId)) ?? 0) < i.qty);
+      return {
+        orderId: r._id, number: r.number, name: r.name, email: r.email, type: r.type, total: r.total, amountPaid: r.amountPaid, orderStatus: r.status,
+        paymentId: p._id, kind: p.kind, status: p.status, method: p.method, utr: p.utr, expectedAmount: p.expectedAmount, amount: p.amount,
+        submittedAt: p.submittedAt, reviewedAt: p.reviewedAt, reviewedBy: p.reviewedBy, rejectionReason: p.rejectionReason, bankCheck: p.bankCheck,
+        hasProof: Boolean(p.proofId),
+        mismatch: p.status === 'paid' && p.expectedAmount && p.amount !== p.expectedAmount,
+        interrupted: p.status === 'approving' && p.approvalStartedAt && Date.now() - new Date(p.approvalStartedAt).getTime() > STALE_APPROVAL_MS,
+        lowStock,
+      };
+    }),
+  });
 });
+
+// One payment with everything needed to review it next to the screenshot.
+router.get('/orders/:id/payments/:pid', async (req, res) => {
+  const order = await Order.findById(req.params.id);
+  const p = order?.payments.id(req.params.pid);
+  if (!p) return res.status(404).json({ error: 'Payment not found.' });
+  const stock = order.type === 'shop'
+    ? await Promise.all(order.items.filter((i) => i.kind !== 'giftcard').map(async (i) => ({ title: i.title, qty: i.qty, inStock: (await Product.findById(i.productId).select('stock').lean())?.stock ?? 0 })))
+    : [];
+  const others = order.payments.filter((x) => String(x._id) !== String(p._id)).map((x) => ({ id: x._id, kind: x.kind, status: x.status, amount: x.amount, expectedAmount: x.expectedAmount, utr: x.utr, at: x.reviewedAt || x.submittedAt || x.at, reason: x.rejectionReason, by: x.reviewedBy }));
+  res.json({
+    order: { id: order._id, number: order.number, type: order.type, name: order.name, email: order.email, phone: order.phone, total: order.total, amountPaid: order.amountPaid, depositAmount: order.depositAmount, status: order.status, paymentStatus: order.paymentStatus, items: order.items, commission: order.commission ? { tierTitle: order.commission.tierTitle } : null },
+    payment: { ...p.toObject(), proofId: undefined, hasProof: Boolean(p.proofId), interrupted: p.status === 'approving' && p.approvalStartedAt && Date.now() - p.approvalStartedAt.getTime() > STALE_APPROVAL_MS },
+    others,
+    stock,
+  });
+});
+
+// The screenshot itself. Streamed through the server so it never has a public address.
+router.get('/orders/:id/payments/:pid/proof', async (req, res) => {
+  const order = await Order.findById(req.params.id).select('payments');
+  const p = order?.payments.id(req.params.pid);
+  if (!p?.proofId) return res.status(404).json({ error: 'No screenshot for this payment.' });
+  const file = p.proofProvider === 'cloudinary' ? await cloudinary.fetchPrivateImage(p.proofId, 'jpg') : await proofFiles.readLocal(p.proofId);
+  if (!file) return res.status(404).json({ error: 'That screenshot is no longer stored.' });
+  res.set('Content-Type', /^image\/(jpeg|png|webp)$/.test(file.contentType) ? file.contentType : 'image/jpeg');
+  res.set('Cache-Control', 'private, no-store');
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.send(file.buffer);
+});
+
+router.post('/orders/:id/payments/:pid/approve', validate(z.object({
+  amount: z.coerce.number().int().min(1).max(10_000_000),
+  bankCheck,
+})), handled(async (req, res) => {
+  const result = await payments.approvePayment(req.params.id, req.params.pid, { amount: req.body.amount, bankCheck: req.body.bankCheck, admin: req.user.email });
+  res.json({ ok: true, paymentStatus: result.order.paymentStatus, due: money.amountDue(result.order) });
+}));
+
+router.post('/orders/:id/payments/:pid/reject', validate(z.object({ reason: str(300).min(3, 'Choose or type a reason. The customer will see it.') })), handled(async (req, res) => {
+  await payments.rejectPayment(req.params.id, req.params.pid, { reason: req.body.reason, admin: req.user.email });
+  res.json({ ok: true });
+}));
+
+// Finishes an approval that was interrupted (a crash or timeout). Never repeats anything.
+router.post('/orders/:id/payments/:pid/finish', handled(async (req, res) => {
+  const result = await payments.finishApproval(req.params.id, req.params.pid);
+  res.json({ ok: true, already: result.already, paymentStatus: result.order.paymentStatus });
+}));
+
+router.post('/orders/:id/refunds', validate(z.object({
+  amount: z.coerce.number().int().min(1).max(10_000_000),
+  note: str(300).optional().default(''),
+})), handled(async (req, res) => {
+  const order = await payments.recordRefund(req.params.id, { amount: req.body.amount, note: req.body.note, admin: req.user.email });
+  res.json({ ok: true, paymentStatus: order.paymentStatus, amountPaid: order.amountPaid });
+}));
 
 // ---------- Orders taken outside the website (Instagram DM, WhatsApp, in person) ----------
 // June types them in; they behave exactly like website orders, and show up in the customer's
@@ -199,7 +354,7 @@ router.post('/orders/manual', validate(z.object({
   story: optStr(4000),
   price: z.coerce.number().int().min(0).max(1_000_000).optional().default(0),
   discount: z.coerce.number().int().min(0).max(1_000_000).optional().default(0),
-  address: z.object({ name: optStr(80), phone: optStr(20), line1: optStr(200), line2: optStr(200), city: optStr(80), state: optStr(80), pincode: optStr(10) }).optional().default({}),
+  address: z.object({ name: optStr(80), phone: optStr(20), line1: optStr(200), line2: optStr(200), city: optStr(80), state: optStr(80), pincode: optStr(10) }).optional().prefault({}),
   paid: z.enum(['none', 'deposit', 'full']).default('none'),
   paidAmount: z.coerce.number().int().min(0).max(1_000_000).optional().default(0),
   paymentNote: optStr(300),
@@ -245,7 +400,7 @@ router.post('/orders/manual', validate(z.object({
   if (b.paid !== 'none') {
     if (!order.total) return res.status(400).json({ error: 'Add a price before recording a payment.' });
     const amount = b.paidAmount || (b.paid === 'full' ? order.total : order.depositAmount || Math.ceil(order.total / 2));
-    await markPaymentPaid(order, { kind: b.paid === 'full' ? 'full' : 'deposit', amount, method: 'manual', note: b.paymentNote || `Paid on ${from}` });
+    await payments.recordManualPayment(order._id, { kind: b.paid === 'full' ? 'full' : 'deposit', amount, note: b.paymentNote || `Paid on ${from}`, admin: req.user.email });
   } else if (b.notify) {
     if (order.type === 'shop') await mail.send({ to: order.email, ...mail.templates.shopOrderPlaced(order), key: `order-placed:${order._id}`, kind: 'order' });
     else if (order.status === 'quoted') await mail.send({ to: order.email, ...mail.templates.quoteReady(order), key: `quote:${order._id}:${order.history.length}`, kind: 'quote' });
@@ -269,7 +424,7 @@ const productSchema = z.object({
   colour: str(40).optional().default(''),
   featured: z.boolean().optional().default(false),
   badge: str(30).optional().default(''),
-  details: z.object({ size: str(120).optional().default(''), material: str(200).optional().default(''), care: str(500).optional().default('') }).optional().default({}),
+  details: z.object({ size: str(120).optional().default(''), material: str(200).optional().default(''), care: str(500).optional().default('') }).optional().prefault({}),
   sortOrder: z.coerce.number().int().optional().default(0),
   kind: z.enum(['tote', 'giftcard']).optional().default('tote'),
   bundleWithSlug: str(80).optional().default(''),
@@ -421,6 +576,11 @@ router.put('/content/:key', async (req, res) => {
     return res.status(400).json({ error: 'Invalid content format.' });
   }
   if (JSON.stringify(data).length > 200_000) return res.status(413).json({ error: 'That content is too large.' });
+  if (key === 'site' && data.upiId !== undefined) {
+    data.upiId = String(data.upiId || '').trim();
+    if (data.upiId && !upi.isValidUpiId(data.upiId)) return res.status(400).json({ error: 'That UPI ID doesn’t look right. It should look like name@bank, for example june@okhdfc.' });
+    data.upiName = String(data.upiName || '').trim().slice(0, 60);
+  }
   res.json({ key, data: await setContent(key, data) });
 });
 

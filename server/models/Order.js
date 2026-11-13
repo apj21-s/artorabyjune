@@ -10,14 +10,42 @@ const ItemSchema = new mongoose.Schema({
   kind: { type: String, default: 'tote' },
 }, { _id: false });
 
+// One payment against an order.
+// Lifecycle (UPI proof): pending → approving → paid, or pending → rejected.
+// 'approving' means June pressed Approve and the side effects (stock, coupon, gift cards, emails)
+// are being applied; finishApproval() can safely re-run it after a crash.
+// 'created' / 'failed' and the razorpay* fields only exist on old Razorpay-era records.
+const PAYMENT_STATUSES = ['pending', 'approving', 'paid', 'rejected', 'created', 'failed'];
 const PaymentSchema = new mongoose.Schema({
   kind: { type: String, enum: ['full', 'deposit', 'balance'] },
-  amount: Number,
-  method: { type: String, enum: ['razorpay', 'manual', 'giftcard'], default: 'razorpay' },
-  status: { type: String, enum: ['created', 'paid', 'failed'], default: 'created' },
+  amount: Number, // what was actually received (set when approved)
+  expectedAmount: Number, // what was due when the customer submitted proof
+  method: { type: String, enum: ['upi', 'manual', 'giftcard', 'razorpay'], default: 'upi' },
+  status: { type: String, enum: PAYMENT_STATUSES, default: 'pending' },
+  utr: String,
+  proofId: String, // private Cloudinary public_id (or local file name) of the screenshot
+  proofProvider: { type: String, enum: ['cloudinary', 'local'] },
+  submittedAt: Date,
+  approvalStartedAt: Date,
+  reviewedAt: Date,
+  reviewedBy: String, // admin email
+  rejectionReason: String,
+  bankCheck: {
+    amount: Number,
+    date: String,
+    sender: String,
+    utrMatched: Boolean,
+  },
   razorpayOrderId: { type: String, index: true },
   razorpayPaymentId: String,
   note: String,
+  at: { type: Date, default: Date.now },
+}, { _id: true });
+
+const RefundSchema = new mongoose.Schema({
+  amount: Number,
+  note: String,
+  by: String,
   at: { type: Date, default: Date.now },
 }, { _id: true });
 
@@ -89,13 +117,17 @@ const OrderSchema = new mongoose.Schema({
   total: { type: Number, default: 0 },
   depositAmount: { type: Number, default: 0 },
   amountPaid: { type: Number, default: 0 },
+  // Derived money state; only server/lib/money.js recomputeMoney() writes it.
   paymentStatus: {
     type: String,
-    enum: ['unpaid', 'deposit_paid', 'paid', 'refunded'],
+    enum: ['unpaid', 'partially_paid', 'deposit_paid', 'paid', 'overpaid', 'refunded'],
     default: 'unpaid',
     index: true,
   },
   payments: { type: [PaymentSchema], default: [] },
+  refunds: { type: [RefundSchema], default: [] },
+  proofSubmissions: { type: Number, default: 0 },
+  emailVerified: { type: Boolean, default: false }, // the checkout email was proven with a code
   stockCommitted: { type: Boolean, default: false },
 
   status: { type: String, default: 'received', index: true },
@@ -109,8 +141,12 @@ const OrderSchema = new mongoose.Schema({
   reviewRequestedAt: Date,
 }, { timestamps: true });
 
+OrderSchema.index({ 'payments.status': 1, 'payments.submittedAt': 1 });
+OrderSchema.index({ 'payments.utr': 1 });
+
 OrderSchema.virtual('balanceDue').get(function balanceDue() {
   return Math.max(0, (this.total || 0) - (this.amountPaid || 0));
 });
 
 module.exports = mongoose.models.Order || mongoose.model('Order', OrderSchema);
+module.exports.PAYMENT_STATUSES = PAYMENT_STATUSES;
