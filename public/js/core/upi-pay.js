@@ -82,6 +82,23 @@ async function readScreenshot(file, onProgress) {
   }
 }
 
+// ---------- The scout: the kitten detective, shown while the screenshot is read ----------
+// Three transparent clips in /assets/kitty: a searching loop, "found" and "puzzled". Decorative only
+// (aria-hidden); the caption and the note under the UTR say the same in words.
+//   Chrome, Android, Firefox, Edge: WebM with an alpha channel (smallest).
+//   Safari and every iPhone browser: WebKit can't show WebM transparency, so animated WebP instead.
+//   Reduced motion or data saver: one still picture per state.
+const KITTY = '/assets/kitty';
+const REDUCED_MOTION = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+const SAVE_DATA = Boolean(navigator.connection?.saveData);
+const STILL_ONLY = REDUCED_MOTION || SAVE_DATA;
+const IS_WEBKIT = isIOS || (/Safari\//.test(UA) && !/Chrome|Chromium|CriOS|FxiOS|Edg|OPR|Android/.test(UA));
+const KITTY_MODE = STILL_ONLY ? 'still' : IS_WEBKIT ? 'webp' : 'video';
+const SEARCH_LOOP_MS = 1080; // length of searching.webm / searching-anim.webp
+// The search always gets at least this long, and always finishes the loop it's on.
+const SCOUT_MIN_MS = 1800;
+const SCOUT_HOLD_MS = 1700;
+
 // ---------- Upload ----------
 async function uploadScreenshot(file, { number, token }) {
   const blob = await compressImage(file);
@@ -171,6 +188,16 @@ export function renderUpiPanel(container, { payment, number, token, onSubmitted,
               <input type="file" name="screenshot" accept="image/png,image/jpeg,image/webp" aria-labelledby="shot-label-${esc(number)}">
               <span class="upi-shot-empty" data-shot-empty>Tap to add the screenshot of your successful payment</span>
               <img data-shot-preview alt="Your payment screenshot" hidden>
+              <span class="ocr-scout" data-ocr-scout hidden aria-hidden="true">
+                <span class="ocr-scan"></span>
+                <span class="scout-wrap">
+                  ${KITTY_MODE === 'video'
+                    ? raw(`<video class="scout-kitty" data-scout-kitty muted playsinline preload="none" disablepictureinpicture poster="${KITTY}/searching.webp" width="320" height="252"></video>`)
+                    : raw(`<img class="scout-kitty" data-scout-kitty src="${KITTY}/searching.webp" alt="" width="320" height="252" decoding="async">`)}
+                  <span class="scout-ask" aria-hidden="true">?</span>
+                </span>
+                <span class="ocr-caption" data-ocr-caption>Looking for your UTR…</span>
+              </span>
             </label>
             <span class="upi-shot-status" data-shot-status></span>
           </div>
@@ -203,6 +230,92 @@ function wirePanel(root, { payment, number, token, onSubmitted }) {
   let uploaded = readStored(number);
   let uploading = null;
   let typedByHand = false;
+  let scanId = 0;
+  const shotBox = root.querySelector('[data-shot]');
+  const scoutEl = root.querySelector('[data-ocr-scout]');
+  const caption = root.querySelector('[data-ocr-caption]');
+  const kitty = scoutEl.querySelector('[data-scout-kitty]');
+  const isVideo = KITTY_MODE === 'video';
+  let loopStarted = 0; // when the animated WebP loop began (it has no "ended" event)
+  const webpCache = {};
+  // Animated WebP only restarts from frame one with a fresh URL, so keep each file as a blob.
+  const webpUrl = async (name) => {
+    webpCache[name] ||= fetch(`${KITTY}/${name}-anim.webp`).then((r) => r.blob()).catch(() => null);
+    const blob = await webpCache[name];
+    return blob ? URL.createObjectURL(blob) : `${KITTY}/${name}-anim.webp`;
+  };
+  const setClip = async (name, { loop = false } = {}) => {
+    if (KITTY_MODE === 'still') {
+      kitty.src = `${KITTY}/${name === 'searching' ? 'searching' : `${name}-end`}.webp`;
+      return;
+    }
+    if (isVideo) {
+      kitty.loop = loop;
+      kitty.src = `${KITTY}/${name}.webm`;
+      kitty.load();
+      kitty.play().catch(() => {}); // autoplay blocked (e.g. low-power mode): the poster still shows
+      return;
+    }
+    const url = await webpUrl(name);
+    if (kitty.src.startsWith('blob:')) URL.revokeObjectURL(kitty.src);
+    kitty.src = url;
+    loopStarted = Date.now();
+  };
+  // Let the searching loop play to its end before the answer, so the animation never cuts off.
+  const finishLoop = () => new Promise((resolve) => {
+    if (KITTY_MODE === 'still') { resolve(); return; }
+    if (!isVideo) {
+      const into = (Date.now() - loopStarted) % SEARCH_LOOP_MS;
+      setTimeout(resolve, SEARCH_LOOP_MS - into);
+      return;
+    }
+    if (kitty.paused || kitty.readyState < 2) { resolve(); return; }
+    const done = () => { clearTimeout(cap); kitty.removeEventListener('ended', done); resolve(); };
+    const cap = setTimeout(done, SEARCH_LOOP_MS + 400);
+    kitty.loop = false;
+    kitty.addEventListener('ended', done);
+  });
+  // Start fetching the searching clip as soon as they tap to choose a screenshot.
+  let warmed = false;
+  fileInput.addEventListener('click', () => {
+    if (warmed || KITTY_MODE === 'still') return;
+    warmed = true;
+    if (isVideo) { kitty.preload = 'auto'; kitty.src = `${KITTY}/searching.webm`; kitty.load(); } else webpUrl('searching');
+  });
+  const hideScout = () => { scanId += 1; if (isVideo) kitty.pause(); scoutEl.hidden = true; shotBox.classList.remove('is-scouting'); };
+  // Starts the kitty for one reading; a newer screenshot takes over and the old one goes quiet.
+  const startScout = () => {
+    const id = ++scanId;
+    const started = Date.now();
+    scoutEl.classList.remove('is-found', 'is-lost', 'is-asking', 'is-leaving');
+    scoutEl.hidden = false;
+    shotBox.classList.add('is-scouting');
+    caption.textContent = 'Looking for your UTR…';
+    setClip('searching', { loop: true });
+    return {
+      live: () => id === scanId,
+      progress(p) { if (id === scanId && p > 0 && p < 1) caption.textContent = `Looking for your UTR… ${Math.round(p * 100)}%`; },
+      // Wait out the rest of the kitty's full look, however quick the reading was.
+      settle: async () => {
+        await new Promise((r) => setTimeout(r, Math.max(0, SCOUT_MIN_MS - (Date.now() - started))));
+        if (id === scanId) await finishLoop();
+      },
+      // state: 'found' (one UTR), 'many' (pick one) or 'lost' (none). Unsure ones get the big "?".
+      end(state, text) {
+        if (id !== scanId) return;
+        const found = state === 'found';
+        scoutEl.classList.add(found ? 'is-found' : 'is-lost');
+        if (!found) scoutEl.classList.add('is-asking');
+        setClip(found ? 'found' : 'puzzled');
+        caption.textContent = text;
+        setTimeout(() => {
+          if (id !== scanId) return;
+          scoutEl.classList.add('is-leaving');
+          setTimeout(() => { if (id === scanId) hideScout(); }, 350);
+        }, SCOUT_HOLD_MS);
+      },
+    };
+  };
 
   if (uploaded) {
     statusEl.textContent = 'Your screenshot is already uploaded. Add the UTR and send.';
@@ -280,6 +393,7 @@ function wirePanel(root, { payment, number, token, onSubmitted }) {
       })
       .catch((error) => {
         statusEl.textContent = '';
+        hideScout();
         preview.hidden = true;
         empty.hidden = false;
         fileInput.value = '';
@@ -289,12 +403,22 @@ function wirePanel(root, { payment, number, token, onSubmitted }) {
       .finally(() => { uploading = null; });
 
     // Optional: read the UTR off the screenshot, on this device. Manual entry works meanwhile.
+    const scout = startScout();
     ocrNote.hidden = false;
     ocrNote.textContent = 'Reading the UTR from your screenshot… you can type it meanwhile.';
-    const slow = setTimeout(() => { if (!utrInput.value) ocrNote.textContent = 'Still reading… typing it in is quicker.'; }, 12000);
-    readScreenshot(file, (p) => { if (p < 1 && !utrInput.value) ocrNote.textContent = `Reading the UTR… ${Math.round(p * 100)}%`; })
-      .then((text) => showCandidates(findUtrCandidates(text)))
-      .catch(() => { ocrNote.textContent = 'Please type the UTR in.'; })
+    const slow = setTimeout(() => { if (scout.live() && !utrInput.value) ocrNote.textContent = 'Still reading… typing it in is quicker.'; }, 12000);
+    readScreenshot(file, (p) => scout.progress(p))
+      .then((text) => findUtrCandidates(text))
+      .catch(() => ({ best: [], all: [] }))
+      .then(async (found) => {
+        await scout.settle();
+        if (!scout.live()) return;
+        const list = found.best.length ? found.best : found.all;
+        if (list.length === 1) scout.end('found', 'Found it!');
+        else if (list.length) scout.end('many', 'Found a few. Pick yours.');
+        else scout.end('lost', 'Couldn’t spot it. Please type it in.');
+        showCandidates(found);
+      })
       .finally(() => clearTimeout(slow));
   });
 
@@ -325,6 +449,7 @@ function wirePanel(root, { payment, number, token, onSubmitted }) {
         writeStored(number, null);
         uploaded = null;
         statusEl.textContent = '';
+        hideScout();
         preview.hidden = true;
         empty.hidden = false;
         empty.textContent = 'Tap to add the screenshot again';
