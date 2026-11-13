@@ -20,7 +20,9 @@ body.is-admin section:not(.pad){ padding:0; }
 .admin-nav-foot{ margin-top:auto; display:grid; gap:8px; padding:0 8px; font-size:.88rem; }
 .admin-nav-foot a{ color:var(--ink-soft); }
 .admin-main{ padding:32px clamp(16px, 3vw, 40px) 80px; min-width:0; outline:none; }
-.admin-head{ display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap; margin-bottom:24px; }
+.admin-head{ display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap; margin-bottom:24px;
+  /* It's a <header>; the shop's sticky site-header rule must not apply here. */
+  position:static; z-index:auto; background:none; backdrop-filter:none; -webkit-backdrop-filter:none; border-bottom:0; }
 .admin-head h1{ font-size:clamp(1.6rem, 2.6vw, 2.1rem); }
 .admin-head p{ color:var(--ink-soft); margin-top:4px; }
 
@@ -366,7 +368,10 @@ body.is-admin{ background:#ECE4D2 url("/assets/textures/canvas.webp") 0 0 / 240p
 .ov-launch summary h2{ margin-right:auto; }
 .ov-count{ font:600 .72rem/1 'IBM Plex Mono', monospace; text-transform:uppercase; letter-spacing:.08em; color:var(--cherry); }
 .ov-launch .checklist{ margin-top:12px; }
-.overview-updated{ margin:0; text-align:right; font-size:.76rem; }
+.overview-updated{ margin:0; text-align:right; font-size:.78rem; font-variant-numeric:tabular-nums; }
+.refresh-now{ padding:0; border:0; background:none; font:inherit; font-weight:600; color:var(--ink); text-decoration:underline; text-underline-offset:3px; text-decoration-color:rgba(34,29,25,.3); cursor:pointer; }
+.refresh-now:hover{ text-decoration-color:currentColor; }
+@media (max-width:640px){ .refresh-now{ min-height:44px; padding:0 4px; } }
 
 @media (max-width:1100px){
   .ov{ grid-template-columns:minmax(0,1fr); grid-template-rows:none; grid-template-areas:"figs" "todo" "side"; }

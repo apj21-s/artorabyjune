@@ -363,7 +363,7 @@ function renderOverview(s) {
               ${!c.done && c.hint ? raw(html`<small>${c.hint}</small>`) : ''}
             </li>`))}</ul>
         </details>`) : ''}
-        <p class="overview-updated helper-note">Updated just now · refreshes every minute</p>
+        <p class="overview-updated helper-note"><span data-countdown>Updated just now</span> · <button class="refresh-now" type="button" data-refresh-now>Refresh now</button></p>
       </div>
     </div>`;
   $('[data-launch-box]')?.addEventListener('toggle', (e) => { launchOpen = e.currentTarget.open; });
@@ -382,25 +382,79 @@ function renderOverview(s) {
 }
 
 // Keep the overview fresh without a reload, but never while June is typing or has something open.
+// A one-second ticker shows "Updated 12s ago · refreshing in 48s" and does the refresh when it's due.
 const REFRESH_MS = 60 * 1000;
+const RETRY_MS = 5 * 1000; // when a refresh has to wait (typing, a window open) or fails
 let overviewTimer = null;
+let lastUpdated = 0;
+let nextRefresh = 0;
+let refreshing = false;
+let waitReason = '';
 const onOverview = () => (location.hash.slice(1) || 'overview').split(/[/?]/)[0] === 'overview';
-async function refreshOverview() {
-  if (!onOverview() || document.hidden || dirty) return;
-  const modalOpen = $('[data-modal]') && !$('[data-modal]').hidden;
-  const typing = document.activeElement?.matches?.('input, textarea, select');
-  if (modalOpen || typing) return;
+const secs = (ms) => Math.max(0, Math.round(ms / 1000));
+const sinceText = (ms) => (ms < 5000 ? 'just now' : ms < 60000 ? `${secs(ms)}s ago` : `${Math.floor(ms / 60000)} min ago`);
+
+function showCountdown() {
+  const el = $('[data-countdown]');
+  if (!el) return;
+  const now = Date.now();
+  let text = `Updated ${sinceText(now - lastUpdated)}`;
+  if (refreshing) text += ' · refreshing…';
+  else if (waitReason) text += ` · ${waitReason}`;
+  else text += ` · refreshing in ${secs(nextRefresh - now)}s`;
+  el.textContent = text;
+}
+
+function blockedReason() {
+  if (dirty) return 'paused: unsaved changes';
+  if ($('[data-modal]') && !$('[data-modal]').hidden) return 'paused while a window is open';
+  if (document.activeElement?.matches?.('input, textarea, select')) return 'paused while you type';
+  return '';
+}
+
+async function refreshOverview({ force = false } = {}) {
+  if (!onOverview() || refreshing) return;
+  if (!force && document.hidden) return;
+  waitReason = force ? '' : blockedReason();
+  if (waitReason) { nextRefresh = Date.now() + RETRY_MS; showCountdown(); return; }
+  refreshing = true;
+  showCountdown();
   try {
     const s = await get('/admin/stats');
-    if (onOverview() && !(document.activeElement?.matches?.('input, textarea, select'))) renderOverview(s);
-  } catch { /* try again next minute */ }
+    if (onOverview() && (force || !blockedReason())) {
+      renderOverview(s);
+      lastUpdated = Date.now();
+      nextRefresh = lastUpdated + REFRESH_MS;
+    } else {
+      nextRefresh = Date.now() + RETRY_MS;
+    }
+  } catch {
+    nextRefresh = Date.now() + RETRY_MS;
+  } finally {
+    refreshing = false;
+    showCountdown();
+  }
 }
-document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshOverview(); });
+
+function startOverviewTicker() {
+  clearInterval(overviewTimer);
+  overviewTimer = setInterval(() => {
+    if (!onOverview()) { clearInterval(overviewTimer); return; }
+    if (document.hidden) return;
+    if (Date.now() >= nextRefresh) refreshOverview();
+    else showCountdown();
+  }, 1000);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && onOverview()) refreshOverview(); });
+document.addEventListener('click', (e) => { if (e.target.closest('[data-refresh-now]')) refreshOverview({ force: true }); });
 
 async function viewOverview() {
   renderOverview(await get('/admin/stats'));
-  clearInterval(overviewTimer);
-  overviewTimer = setInterval(refreshOverview, REFRESH_MS);
+  lastUpdated = Date.now();
+  nextRefresh = lastUpdated + REFRESH_MS;
+  waitReason = '';
+  showCountdown();
+  startOverviewTicker();
 }
 
 // ---------------- Orders ----------------

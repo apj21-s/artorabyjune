@@ -135,21 +135,25 @@ export function renderUpiPanel(container, { payment, number, token, onSubmitted,
         <figure class="upi-slip receipt" aria-label="Payment details">
           <p class="receipt-head">Pay by UPI · ${payment.reference}</p>
           <p class="upi-amount"><small>${word}</small>${inr(payment.amount)}</p>
-          <img class="upi-qr" src="${qrImg(payment.qrSvg)}" alt="UPI QR code to pay ${inr(payment.amount)} to ${payment.upiName}" width="196" height="196">
-          <p class="upi-scan">${isPhone ? 'On another phone? Scan this.' : 'Scan with any UPI app'}</p>
+          ${isPhone ? raw(html`
+            <div class="upi-apps is-first">
+              <a class="btn btn-primary btn-block upi-pay-btn" href="${payment.upiUri}" data-app="any">Pay ${inr(payment.amount)} in your UPI app</a>
+              <p class="upi-apps-or">or open
+                ${raw(APPS.map((a) => html`<a href="${appLink(a, query)}" data-app="${a.key}">${a.name}</a>`).join('<span aria-hidden="true"> · </span>'))}
+              </p>
+              <p class="upi-app-miss" data-app-miss hidden>That app didn’t open. Try another one above, or copy the UPI ID below into any UPI app.</p>
+            </div>
+            <details class="upi-qr-more">
+              <summary>Paying from another phone? Show the QR code</summary>
+              <img class="upi-qr" src="${qrImg(payment.qrSvg)}" alt="UPI QR code to pay ${inr(payment.amount)} to ${payment.upiName}" width="196" height="196">
+            </details>`) : raw(html`
+            <img class="upi-qr" src="${qrImg(payment.qrSvg)}" alt="UPI QR code to pay ${inr(payment.amount)} to ${payment.upiName}" width="196" height="196">
+            <p class="upi-scan">Scan with any UPI app</p>`)}
           <dl class="upi-lines">
             <dt>To</dt><dd>${payment.upiName}</dd>
             <dt>UPI ID</dt><dd><span class="upi-id">${payment.upiId}</span> <button class="link-copy" type="button" data-copy-upi>copy</button></dd>
             <dt>Note</dt><dd>${payment.reference}</dd>
           </dl>
-          ${isPhone ? raw(html`
-            <div class="upi-apps">
-              <a class="btn btn-primary btn-block" href="${payment.upiUri}" data-app="any">Pay ${inr(payment.amount)} in your UPI app</a>
-              <p class="upi-apps-or">or open
-                ${raw(APPS.map((a) => html`<a href="${appLink(a, query)}" data-app="${a.key}">${a.name}</a>`).join('<span aria-hidden="true"> · </span>'))}
-              </p>
-              <p class="upi-app-miss" data-app-miss hidden>That app didn’t open. Scan the QR from another phone, or copy the UPI ID into any UPI app.</p>
-            </div>`) : ''}
         </figure>
 
         <form class="upi-proof crumpled" data-proof novalidate>

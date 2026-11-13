@@ -865,6 +865,14 @@ body:not(.is-admin) .status-chip.is-cancel::before{ background:var(--cherry); }
 .upi-apps-or{ margin:0; font-size:.86rem; color:var(--text-muted); }
 .upi-apps-or a{ color:var(--ink); font-weight:600; text-decoration:underline; text-decoration-color:rgba(193,68,60,.5); text-underline-offset:3px; }
 .upi-app-miss{ margin:0; font-size:.84rem; color:var(--cherry-800); text-align:left; }
+/* Phones: the app buttons come first; the QR is only for paying from a second device. */
+.upi-apps.is-first{ margin:4px 0 12px; padding:0 0 14px; border-top:0; border-bottom:1px dashed rgba(34,29,25,.3); }
+.upi-pay-btn{ min-height:52px; font-size:1.02rem; }
+.upi-apps.is-first .upi-apps-or a{ display:inline-block; padding:8px 2px; }
+.upi-qr-more{ margin:0 0 12px; font-family:Inter, system-ui, sans-serif; }
+.upi-qr-more summary{ cursor:pointer; padding:10px 0; font-size:.86rem; font-weight:600; color:var(--ink-soft); text-decoration:underline; text-underline-offset:3px; text-decoration-color:rgba(34,29,25,.3); list-style:none; }
+.upi-qr-more summary::-webkit-details-marker{ display:none; }
+.upi-qr-more[open] .upi-qr{ margin-top:6px; }
 .upi-proof{ padding:clamp(22px, 3vw, 34px); display:grid; gap:4px; }
 .upi-proof h3{ font-size:1.3rem; margin-bottom:8px; }
 .upi-nudge{ margin:0 0 10px; padding-left:12px; border-left:3px solid var(--sage); font-size:.9rem; }
